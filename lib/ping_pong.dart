@@ -100,10 +100,10 @@ class _PingPongState extends State<PingPong> {
     promises.add(_engine.enableInEarMonitoring(false).catchError((error) {
       print(error);
     }));
-    promises.add(
-        _engine.enableAudioVolumeIndication(50, 3, true).catchError((error) {
-      print(error);
-    }));
+    // promises.add(
+    //     _engine.enableAudioVolumeIndication(50, 3, true).catchError((error) {
+    //   print(error);
+    // }));
     promises.add(_engine.enableDeepLearningDenoise(true).catchError((error) {
       print(error);
     }));
@@ -124,7 +124,9 @@ class _PingPongState extends State<PingPong> {
     await Future.wait(promises).catchError((error) {
       print(error);
     });
-    await _engine.joinChannel(_token, 'shmooze', null, 0).catchError((error) {
+    await _engine
+        .joinChannel(_token, _shmoozeId, null, _isSender ? 177 : 178)
+        .catchError((error) {
       print(error);
     });
     if (_isSender) {
@@ -191,48 +193,50 @@ class _PingPongState extends State<PingPong> {
           _updateInviteStatus(Status.cancelled.index);
           _retreat('${widget.displayName} is currently unavailable.');
         }
-      }, audioVolumeIndication:
-          (List<AudioVolumeInfo> speakers, int totalVolume) async {
-        int senderVolume = 0;
-        int receiverVolume = 0;
-        for (int i = 0; i < speakers.length; i++) {
-          int volume = speakers[i].volume;
-          if (speakers[i].vad == 1) {
-            senderVolume = volume;
-          } else {
-            receiverVolume = volume;
-          }
-        }
-        if (senderVolume >= 50 || receiverVolume >= 50) {
-          if (senderVolume >= receiverVolume) {
-            _senderSpeakingTimes.add(await getCurrentTime());
-          } else {
-            _receiverSpeakingTimes.add((await getCurrentTime()));
-          }
-        }
-      }, joinChannelSuccess: (_, __, ___) async {
+      },
+          //     audioVolumeIndication:
+          //     (List<AudioVolumeInfo> speakers, int totalVolume) async {
+          //   int senderVolume = 0;
+          //   int receiverVolume = 0;
+          //   for (int i = 0; i < speakers.length; i++) {
+          //     int volume = speakers[i].volume;
+          //     if (speakers[i].vad == 1) {
+          //       senderVolume = volume;
+          //     } else {
+          //       receiverVolume = volume;
+          //     }
+          //   }
+          //   if (senderVolume >= 50 || receiverVolume >= 50) {
+          //     if (senderVolume >= receiverVolume) {
+          //       _senderSpeakingTimes.add(await getCurrentTime());
+          //     } else {
+          //       _receiverSpeakingTimes.add((await getCurrentTime()));
+          //     }
+          //   }
+          // },
+          joinChannelSuccess: (_, __, ___) async {
         _engine.enableAudio().catchError((error) {
           print(error);
         });
         _engine.setEnableSpeakerphone(true).catchError((error) {
           print(error);
         });
-        _shmoozeFilePath =
-            await _getTmpFile('pod${await getCurrentTime()}.wav');
-        if (_shmoozeFilePath == null) {
-          if (!_isLeaving && !_hasFinished) {
-            _updateInviteStatus(Status.cancelled.index);
-            _retreat('Something unexpected happened, please try again later.');
-          }
-        } else {
-          await _engine
-              .startAudioRecording(_shmoozeFilePath,
-                  AudioSampleRateType.Type48000, AudioRecordingQuality.High)
-              .catchError((error) {
-            print(error);
-          });
-          _startedRecording = await getCurrentTime();
-        }
+        // _shmoozeFilePath =
+        //     await _getTmpFile('pod${await getCurrentTime()}.wav');
+        // if (_shmoozeFilePath == null) {
+        //   if (!_isLeaving && !_hasFinished) {
+        //     _updateInviteStatus(Status.cancelled.index);
+        //     _retreat('Something unexpected happened, please try again later.');
+        //   }
+        // } else {
+        //   await _engine
+        //       .startAudioRecording(_shmoozeFilePath,
+        //           AudioSampleRateType.Type48000, AudioRecordingQuality.High)
+        //       .catchError((error) {
+        //     print(error);
+        //   });
+        //   _startedRecording = await getCurrentTime();
+        // }
       }));
     } else {
       _engine.setEventHandler(RtcEngineEventHandler(userOffline: (_, __) {
@@ -603,7 +607,7 @@ class _PingPongState extends State<PingPong> {
         return;
       }
       if (ds != null && ds.exists) {
-        _latestSnapshot = ds;
+        _shmoozeId = _shmoozeId ?? ds.get('shmoozeId');
         final int status = ds.get('status');
         if (!_isSender) {
           if (status == Status.complete.index ||
@@ -825,7 +829,6 @@ class _PingPongState extends State<PingPong> {
   @override
   void initState() {
     super.initState();
-    _shmoozeId = _getShmoozeId();
     _hasInitializedEngine = false;
     _showThatWeAreFinished = false;
     _hasBeenDestroyed = false;
