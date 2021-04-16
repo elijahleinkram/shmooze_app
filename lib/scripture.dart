@@ -9,11 +9,10 @@ class Scripture extends StatefulWidget {
   final dynamic audioRecordingUrl;
   final dynamic verses;
   final AudioPlayer audioPlayer;
-  final dynamic startedRecording;
   final ValueKey<dynamic> key;
   final Future<void> Function() onRefresh;
   final bool isPreview;
-  final int refreshCount;
+  final String refreshToken;
   final int index;
   final String name;
   final String caption;
@@ -22,8 +21,7 @@ class Scripture extends StatefulWidget {
   final dynamic finishedSpeaking;
 
   Scripture(
-      {@required this.startedRecording,
-      @required this.startedSpeaking,
+      {@required this.startedSpeaking,
       @required this.finishedSpeaking,
       @required this.getCurrentPage,
       @required this.audioRecordingUrl,
@@ -31,7 +29,7 @@ class Scripture extends StatefulWidget {
       @required this.audioPlayer,
       @required this.onRefresh,
       @required this.isPreview,
-      @required this.refreshCount,
+      @required this.refreshToken,
       @required this.index,
       @required this.caption,
       @required this.name,
@@ -76,49 +74,37 @@ class _ScriptureState extends State<Scripture>
       }
     });
     _positionSubscription = positionStream.listen((Duration duration) {
-      if (duration.inMilliseconds < widget.startedSpeaking + (1000 ~/ 3)) {
-        if (_lineNumber != 0) {
-          _lineNumber = 0;
-          if (mounted) {
-            setState(() {});
-          }
-        }
-        return;
-      }
-      if (duration.inMilliseconds > widget.finishedSpeaking) {
-        if (_lineNumber != 0) {
-          _lineNumber = 0;
-          if (mounted) {
-            setState(() {});
-          }
-        }
+      if (duration.inMilliseconds < widget.verses[0]['mouth']['closes']) {
+        _updateLineNumber(0);
+      } else if (duration.inMilliseconds > widget.finishedSpeaking) {
+        _updateLineNumber(0);
         widget.audioPlayer
             .seek(Duration(milliseconds: widget.startedSpeaking))
             .catchError((error) {
           print(error);
         });
-        return;
-      }
-      for (int i = _lineNumber; i < widget.verses.length; i++) {
-        final dynamic verse = widget.verses[i];
-        final int closesMouth = (verse['mouth']['closes'] * 1000).toInt();
-        if (closesMouth > duration.inMilliseconds) {
-          if (_lineNumber != i) {
-            _lineNumber = i;
-            if (mounted) {
-              setState(() {});
+      } else {
+        for (int i = _lineNumber; i < widget.verses.length; i++) {
+          final dynamic verse = widget.verses[i];
+          final int closesMouth = (verse['mouth']['closes']);
+          if (closesMouth > duration.inMilliseconds) {
+            if (_lineNumber != i) {
+              _lineNumber = i;
+              if (mounted) {
+                setState(() {});
+              }
             }
+            break;
           }
-          break;
         }
       }
     });
   }
 
-  void _cutkeys() {
+  void _cutKeys() {
     for (int i = 0; i < widget.verses.length; i++) {
-      _keys.add(ValueKey(
-          widget.verses[i]['id'] + ' ' + widget.refreshCount.toString()));
+      _keys.add(
+          ValueKey(widget.verses[i]['verseId'] + ' ' + widget.refreshToken));
     }
   }
 
@@ -133,15 +119,17 @@ class _ScriptureState extends State<Scripture>
       Overlay.of(context).insert(this._overlayEntry);
     } else {
       this._overlayEntry.remove();
-      widget.audioPlayer.setVolume(1.0).catchError((error) {
-        print(error);
-      });
+      if (_currentVolume != 1.0) {
+        _currentVolume = 1.0;
+        widget.audioPlayer.setVolume(_currentVolume).catchError((error) {
+          print(error);
+        });
+      }
       widget.audioPlayer
           .seek(Duration(milliseconds: widget.startedSpeaking))
           .catchError((error) {
         print(error);
       });
-      _currentVolume = 1.0;
       if (_lineNumber != 0) {
         _lineNumber = 0;
       }
@@ -159,7 +147,7 @@ class _ScriptureState extends State<Scripture>
     _isRefreshing = false;
     _lineNumber = 0;
     _startStreams();
-    _cutkeys();
+    _cutKeys();
     if (widget.onRefresh != null) {
       _onRefresh = () async {
         if (_isRefreshing) {
@@ -195,7 +183,9 @@ class _ScriptureState extends State<Scripture>
       return;
     }
     _lineNumber = index;
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   bool _updateCurrentVolume(double volume) {
@@ -261,8 +251,6 @@ class _ScriptureState extends State<Scripture>
             return Verse(
               changeVolumeTo: _changeVolumeTo,
               isMuted: _isMuted(),
-              currentVolume: _currentVolume,
-              isPreview: widget.isPreview,
               key: _keys[index],
               updateLineNumber: _updateLineNumber,
               index: index,
@@ -270,7 +258,6 @@ class _ScriptureState extends State<Scripture>
               audioPlayer: widget.audioPlayer,
               length: widget.verses.length,
               opensMouth: opensMouth,
-              startedRecording: widget.startedRecording,
               isPlaying: _isUpToHere(index),
               displayName: displayName,
               quote: quote,

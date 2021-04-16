@@ -17,15 +17,25 @@ class PreviewPage extends StatefulWidget {
   final AudioPlayer audioPlayer;
   final dynamic startedSpeaking;
   final dynamic finishedSpeaking;
-  final int startedRecording;
+  final String senderUid;
+  final String receiverUid;
+  final String senderDisplayName;
+  final String senderPhotoUrl;
+  final String receiverDisplayName;
+  final String receiverPhotoUrl;
 
   PreviewPage(
       {@required this.caption,
+      @required this.senderDisplayName,
+      @required this.senderPhotoUrl,
+      @required this.receiverDisplayName,
+      @required this.receiverPhotoUrl,
       @required this.shmoozeId,
+      @required this.senderUid,
+      @required this.receiverUid,
       @required this.finishedSpeaking,
       @required this.name,
       @required this.audioPlayer,
-      @required this.startedRecording,
       @required this.startedSpeaking,
       @required this.verses,
       @required this.audioRecordingUrl});
@@ -36,10 +46,9 @@ class PreviewPage extends StatefulWidget {
 
 class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   final dynamic _verses = [];
-  double _currentVolume;
 
-  Future<void> _prepareForDispatch() async {
-    await FirebaseFunctions.instance.httpsCallable('prepareForDispatch').call({
+  Future<void> _uploadShmooze() async {
+    await FirebaseFunctions.instance.httpsCallable('uploadShmooze').call({
       'shmoozeId': widget.shmoozeId,
       'caption': widget.caption,
       'name': widget.name,
@@ -52,7 +61,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     Navigator.of(context).pushAndRemoveUntil(
         CupertinoPageRoute(builder: (BuildContext context) {
       return Home(
-        prepareForDispatch: _prepareForDispatch,
+        uploadShmooze: _uploadShmooze,
       );
     }), (route) => false);
   }
@@ -77,7 +86,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     widget.audioPlayer
         .play(widget.audioRecordingUrl,
             stayAwake: true,
-            volume: _currentVolume,
+            volume: 1.0,
             position: Duration(
               milliseconds: widget.startedSpeaking,
             ))
@@ -91,15 +100,25 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   void _convertVersesToDynamic() {
     for (int i = 0; i < widget.verses.length; i++) {
       final DocumentSnapshot verse = widget.verses[i];
+      final bool isSender = verse.get('authorUid') == widget.senderUid;
+      String displayName;
+      String photoUrl;
+      if (isSender) {
+        displayName = widget.senderDisplayName;
+        photoUrl = widget.senderPhotoUrl;
+      } else {
+        displayName = widget.receiverDisplayName;
+        photoUrl = widget.receiverPhotoUrl;
+      }
       _verses.add({
         'mouth': {
-          'opens': verse.get('mouth')['opens'],
-          'closes': verse.get('mouth')['closes'],
+          'opens': (verse.get('mouth.opens')).toInt(),
+          'closes': (verse.get('mouth.closes')).toInt(),
         },
-        'displayName': verse.get('displayName'),
-        'photoUrl': verse.get('photoUrl'),
+        'displayName': displayName,
+        'photoUrl': photoUrl,
         'quote': verse.get('quote'),
-        'id': verse.id,
+        'verseId': verse.id,
       });
     }
   }
@@ -107,7 +126,6 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _currentVolume = 1.0;
     WidgetsBinding.instance.addObserver(this);
     _convertVersesToDynamic();
     _key = ValueKey(widget.shmoozeId);
@@ -193,12 +211,12 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         finishedSpeaking: widget.finishedSpeaking,
         caption: widget.caption.endsWith('.') ||
                 widget.caption.endsWith('?') ||
-                widget.caption.endsWith(',')
+                widget.caption.endsWith('!')
             ? ' ' + widget.caption
             : ' ' + widget.caption + '.',
-        name: widget.name.endsWith(',') ||
+        name: widget.name.endsWith('.') ||
                 widget.name.endsWith('?') ||
-                widget.name.endsWith('.')
+                widget.name.endsWith('!')
             ? widget.name
             : widget.name + ',',
         getCurrentPage: () {
@@ -206,10 +224,9 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         },
         index: 0,
         onRefresh: null,
-        refreshCount: -1,
+        refreshToken: '-1',
         isPreview: true,
         key: _key,
-        startedRecording: widget.startedRecording,
         verses: _verses,
         audioPlayer: widget.audioPlayer,
         audioRecordingUrl: widget.audioRecordingUrl,
@@ -217,4 +234,3 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     );
   }
 }
-

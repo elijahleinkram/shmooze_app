@@ -121,19 +121,41 @@ class _PersonifyState extends State<Personify> {
 
   void _onNext() {
     _focusNode.unfocus();
-    final String displayName = _textEditingController.text.trim();
-    if (displayName.length < 3) {
-      _showErrorMsg();
+    _createProfile(_textEditingController.text.trim());
+    Navigator.of(context)
+        .pushReplacement(CupertinoPageRoute(builder: (BuildContext context) {
+      return Shmoozers(
+        backButtonIcon: Icons.arrow_back_rounded,
+      );
+    })).catchError((error) {
+      print(error);
+    });
+  }
+
+  void _onChangedText() {
+    final String txt = _textEditingController.text.trim();
+    if (txt.length < 3 && _isValid) {
+      _isValid = false;
+      if (mounted) {
+        setState(() {});
+      }
+    }
+    if (txt.length >= 3 && !_isValid) {
+      _isValid = true;
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  void _deleteOrCapture() async {
+    if (_hasImage()) {
+      _imageFile = null;
     } else {
-      _createProfile(displayName);
-      Navigator.of(context)
-          .pushReplacement(CupertinoPageRoute(builder: (BuildContext context) {
-        return Shmoozers(
-          backButtonIcon: Icons.arrow_back_rounded,
-        );
-      })).catchError((error) {
-        print(error);
-      });
+      _imageFile = await _getImage() ?? _imageFile;
+    }
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -141,25 +163,13 @@ class _PersonifyState extends State<Personify> {
   void initState() {
     super.initState();
     _isValid = false;
-    _textEditingController.addListener(() {
-      if (_textEditingController.text.trim().length < 3 && _isValid) {
-        _isValid = false;
-        if (mounted) {
-          setState(() {});
-        }
-      }
-      if (_textEditingController.text.trim().length >= 3 && !_isValid) {
-        _isValid = true;
-        if (mounted) {
-          setState(() {});
-        }
-      }
-    });
+    _textEditingController.addListener(_onChangedText);
   }
 
   @override
   void dispose() {
     super.dispose();
+    _focusNode.dispose();
     _textEditingController.dispose();
   }
 
@@ -170,6 +180,7 @@ class _PersonifyState extends State<Personify> {
         _focusNode.unfocus();
       },
       child: Scaffold(
+
         resizeToAvoidBottomInset: false,
         backgroundColor: CupertinoColors.white,
         appBar: AppBar(
@@ -182,9 +193,7 @@ class _PersonifyState extends State<Personify> {
               Icons.arrow_back_rounded,
               color: CupertinoColors.black,
             ),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+            onPressed: Navigator.of(context).pop,
           ),
         ),
         body: Padding(
@@ -233,7 +242,7 @@ class _PersonifyState extends State<Personify> {
                             height: 100 / 3,
                             width: 100 / 3,
                             child: FloatingActionButton(
-                              heroTag: 'image',
+                              heroTag: 'image_upload',
                               backgroundColor: CupertinoColors.activeBlue,
                               child: Icon(
                                 !_hasImage()
@@ -242,16 +251,7 @@ class _PersonifyState extends State<Personify> {
                                 color: Colors.white,
                                 size: 18.0,
                               ),
-                              onPressed: () async {
-                                if (_hasImage()) {
-                                  _imageFile = null;
-                                } else {
-                                  _imageFile = await _getImage() ?? _imageFile;
-                                }
-                                if (mounted) {
-                                  setState(() {});
-                                }
-                              },
+                              onPressed: _deleteOrCapture,
                               materialTapTargetSize:
                                   MaterialTapTargetSize.shrinkWrap,
                               mini: true,
@@ -301,11 +301,7 @@ class _PersonifyState extends State<Personify> {
               Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
-                    onTap: () {
-                      if (!_isValid) {
-                        _showErrorMsg();
-                      }
-                    },
+                    onTap: _showErrorMsg,
                     child: TextButton(
                         onPressed: !_isValid ? null : _onNext,
                         child: Text(
@@ -323,5 +319,3 @@ class _PersonifyState extends State<Personify> {
     );
   }
 }
-
-

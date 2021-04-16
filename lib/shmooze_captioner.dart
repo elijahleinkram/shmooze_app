@@ -11,11 +11,8 @@ class ShmoozeCaptioner extends StatefulWidget {
   final String audioRecordingUrl;
   final bool readyForDispatch;
   final String caption;
-  final int startedRecording;
   final String inviteId;
-  final List<int> senderSpeakingTimes;
   final File shmoozeFile;
-  final List<int> receiverSpeakingTimes;
   final String senderUid;
   final void Function(String str) updateAudioRecordingUrl;
   final AudioPlayer audioPlayer;
@@ -39,9 +36,6 @@ class ShmoozeCaptioner extends StatefulWidget {
     @required this.audioRecordingUrl,
     @required this.senderUid,
     @required this.readyForDispatch,
-    @required this.startedRecording,
-    @required this.receiverSpeakingTimes,
-    @required this.senderSpeakingTimes,
     @required this.inviteId,
     @required this.updateAudioRecordingUrl,
     @required this.updateVerses,
@@ -59,7 +53,6 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
   List<DocumentSnapshot> _verses;
   bool _readyForDispatch;
   String _caption;
-
   String _name;
 
   void _updateVerses(List<DocumentSnapshot> verses) {
@@ -77,23 +70,22 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
     widget.updateAudioRecordingUrl(audioRecordingUrl);
   }
 
+  void _updateName(String name) {
+    _name = name;
+    widget.updateName(_name);
+  }
+
   void _onNext() {
     Navigator.of(context)
         .push(CupertinoPageRoute(builder: (BuildContext context) {
       return ShmoozeNamer(
         name: _name,
         caption: _caption,
-        updateName: (String name) {
-          _name = name;
-          widget.updateName(_name);
-        },
+        updateName: _updateName,
         audioPlayer: widget.audioPlayer,
         audioRecordingUrl: _audioRecordingUrl,
         readyForDispatch: _readyForDispatch,
-        receiverSpeakingTimes: widget.receiverSpeakingTimes,
-        senderSpeakingTimes: widget.senderSpeakingTimes,
         shmoozeId: widget.shmoozeId,
-        startedRecording: widget.startedRecording,
         updateAudioRecordingUrl: _updateAudioRecordingUrl,
         updateDispatch: _updateDispatch,
         updateVerses: _updateVerses,
@@ -127,8 +119,8 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
     _readyForDispatch = widget.readyForDispatch;
     _audioRecordingUrl = widget.audioRecordingUrl;
     _verses = widget.verses;
-    _textEditingController.text = widget.caption.trim();
-    _isValid = _textEditingController.text.trim().length >= 3;
+    _textEditingController.text = widget.caption;
+    _isValid = _textEditingController.text.length >= 3;
     _textEditingController.addListener(_textListener);
   }
 

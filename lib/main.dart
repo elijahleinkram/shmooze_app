@@ -11,7 +11,7 @@ void main() {
         navigatorObservers: [routeObserver],
         title: 'Shmooze',
         home: Home(
-          prepareForDispatch: null,
+          uploadShmooze: null,
         ),
         debugShowCheckedModeBanner: false,
       )));

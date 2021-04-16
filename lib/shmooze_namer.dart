@@ -4,16 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shmooze/constants.dart';
 import 'package:shmooze/preview_page.dart';
 
 class ShmoozeNamer extends StatefulWidget {
   final String name;
   final void Function(String name) updateName;
   final bool readyForDispatch;
-  final int startedRecording;
-  final List<int> senderSpeakingTimes;
-  final List<int> receiverSpeakingTimes;
   final void Function(String str) updateAudioRecordingUrl;
   final String audioRecordingUrl;
   final List<DocumentSnapshot> verses;
@@ -27,13 +23,10 @@ class ShmoozeNamer extends StatefulWidget {
     @required this.audioPlayer,
     @required this.name,
     @required this.caption,
-    @required this.receiverSpeakingTimes,
     @required this.updateAudioRecordingUrl,
     @required this.audioRecordingUrl,
     @required this.readyForDispatch,
     @required this.updateName,
-    @required this.senderSpeakingTimes,
-    @required this.startedRecording,
     @required this.verses,
     @required this.shmoozeId,
     @required this.updateDispatch,
@@ -48,90 +41,57 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
   final FocusNode _focusNode = FocusNode();
   StreamSubscription<DocumentSnapshot> _shmoozeSubscription;
   bool _readyForDispatch;
-  bool _letsGo;
+  bool _isTryingToLeavePage;
   String _audioRecordingUrl;
   List<DocumentSnapshot> _verses;
-  dynamic _startedSpeaking;
-  dynamic _finishedSpeaking;
+  int _startedSpeaking;
+  int _finishedSpeaking;
   final TextEditingController _textEditingController = TextEditingController();
   String _name;
   bool _thereIsAnError;
+  DocumentSnapshot _shmoozeSnapshot;
 
-  void _previewUnavailableMsg() {
-    showCupertinoDialog(
-        barrierDismissible: true,
-        context: context,
-        builder: (BuildContext context) {
-          return CupertinoAlertDialog(
-            title: Text(
-              'Preview unavailable',
-              style: GoogleFonts.roboto(),
-            ),
-            content: Text(
-              'We were unable to produce a transcript for this shmooze.',
-              style: GoogleFonts.roboto(),
-            ),
-            actions: [
-              TextButton(
-                child: Text(
-                  'Okay',
-                  style: GoogleFonts.roboto(
-                    color: CupertinoColors.activeBlue,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              )
-            ],
-          );
-        }).then((_) {
-      if (_letsGo) {
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      }
-    }).catchError((error) {
-      print(error);
-    });
+  void _navigateToPreviewPage() {
+    _startedSpeaking = (_verses[0].get('mouth')['opens']).toInt() - (1000 ~/ 3);
+    if (_startedSpeaking < 0) {
+      _startedSpeaking = 0;
+    }
+    _finishedSpeaking =
+        (_verses[_verses.length - 1].get('mouth')['closes']).toInt() +
+            1000 ~/ 3;
+    Navigator.of(context)
+        .push(CupertinoPageRoute(builder: (BuildContext context) {
+      return PreviewPage(
+        receiverUid: _shmoozeSnapshot.get('receiver.uid'),
+        receiverDisplayName: _shmoozeSnapshot.get('receiver.displayName'),
+        receiverPhotoUrl: _shmoozeSnapshot.get('receiver.photoUrl'),
+        senderUid: _shmoozeSnapshot.get('sender.uid'),
+        senderDisplayName: _shmoozeSnapshot.get('sender.displayName'),
+        senderPhotoUrl: _shmoozeSnapshot.get('sender.photoUrl'),
+        finishedSpeaking: _finishedSpeaking,
+        name: widget.caption,
+        startedSpeaking: _startedSpeaking,
+        audioPlayer: widget.audioPlayer,
+        verses: _verses,
+        caption: _name,
+        shmoozeId: widget.shmoozeId,
+        audioRecordingUrl: _audioRecordingUrl,
+      );
+    }));
   }
 
   void _onNext() {
     if (_readyForDispatch) {
-      if (_verses == null || _verses.isEmpty) {
-        _previewUnavailableMsg();
-      } else {
-        _startedSpeaking =
-            ((_verses[0].get('mouth')['opens'] * 1000).toInt()) - (1000 ~/ 3);
-        if (_startedSpeaking < 0) {
-          _startedSpeaking = 0;
-        }
-        _finishedSpeaking =
-            (_verses[_verses.length - 1].get('mouth')['closes'] * 1000)
-                    .toInt() +
-                1000 ~/ 3;
-        Navigator.of(context)
-            .push(CupertinoPageRoute(builder: (BuildContext context) {
-          return PreviewPage(
-            finishedSpeaking: _finishedSpeaking,
-            name: widget.caption.trim(),
-            startedSpeaking: _startedSpeaking,
-            startedRecording: widget.startedRecording,
-            audioPlayer: widget.audioPlayer,
-            verses: _verses,
-            caption: _name.trim(),
-            shmoozeId: widget.shmoozeId,
-            audioRecordingUrl: _audioRecordingUrl,
-          );
-        }));
-      }
+      _navigateToPreviewPage();
     } else {
       if (_thereIsAnError) {
-        showToastErrorMsg(
-            'Something unexpected happened, please try again later.');
+        _showErrorMsg('Preview unavailable',
+            'We were unable to produce a transcript for this shmooze.');
       } else {
-        _letsGo = true;
+        if (_isTryingToLeavePage) {
+          return;
+        }
+        _isTryingToLeavePage = true;
         showCupertinoDialog(
             context: context,
             barrierDismissible: false,
@@ -147,7 +107,7 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
                 ),
               );
             }).then((_) {
-          _letsGo = false;
+          _isTryingToLeavePage = false;
         }).catchError((error) {
           print(error);
         });
@@ -155,18 +115,18 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
     }
   }
 
-  void _showErrorMsg() {
-    showCupertinoDialog(
+  Future<void> _showErrorMsg(String titleMsg, String contentMsg) {
+    return showCupertinoDialog(
         barrierDismissible: true,
         context: context,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
             title: Text(
-              'Too short',
+              titleMsg,
               style: GoogleFonts.roboto(),
             ),
             content: Text(
-              'Caption must have at least three characters.',
+              contentMsg,
               style: GoogleFonts.roboto(),
             ),
             actions: [
@@ -184,11 +144,7 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
               )
             ],
           );
-        }).then((_) {
-      _focusNode.requestFocus();
-    }).catchError((error) {
-      print(error);
-    });
+        });
   }
 
   bool _isValid;
@@ -202,6 +158,8 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         .get()
         .catchError((error) {
       print(error);
+    }).catchError((error) {
+      print(error);
     });
     if (querySnapshot != null && querySnapshot.docs != null) {
       _verses = querySnapshot.docs;
@@ -209,13 +167,15 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
     }
   }
 
-  // void _cleanShmoozeOfSin() {
-  //   FirebaseFunctions.instance
-  //       .httpsCallable('cleanShmoozeOfSin')
-  //       .call({'shmoozeId': widget.shmoozeId}).catchError((error) {
-  //     print(error);
-  //   });
-  // }
+  void _registerError() {
+    if (_isTryingToLeavePage) {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      _showErrorMsg('Preview unavailable',
+          'We were unable to produce a transcript for this shmooze.');
+    }
+  }
 
   void _setupStream() {
     final Stream<DocumentSnapshot> stream = FirebaseFirestore.instance
@@ -223,22 +183,17 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         .doc(widget.shmoozeId)
         .snapshots();
     _shmoozeSubscription = stream.listen((DocumentSnapshot snapshot) async {
-      if (!snapshot.exists) {
+      if (snapshot == null || !snapshot.exists || _thereIsAnError) {
         return;
       }
-      _thereIsAnError = snapshot.get('thereIsAnError');
+      _shmoozeSnapshot = snapshot;
+      _thereIsAnError = _shmoozeSnapshot.get('thereIsAnError');
       if (_thereIsAnError) {
-        if (_letsGo) {
-          if (mounted) {
-            Navigator.of(context).pop();
-          }
-          showToastErrorMsg(
-              'Something unexpected happened, please try again later.');
-        }
-      } else if (snapshot.get('audioRecordingUrl') != null) {
+        _registerError();
+      } else if (_shmoozeSnapshot.get('readyForDispatch')) {
         if (_audioRecordingUrl == null) {
+          _audioRecordingUrl = _shmoozeSnapshot.get('audioRecordingUrl');
           widget.updateAudioRecordingUrl(_audioRecordingUrl);
-          _audioRecordingUrl = snapshot.get('audioRecordingUrl');
           widget.audioPlayer.setUrl(_audioRecordingUrl).catchError((error) {
             print(error);
           });
@@ -246,38 +201,17 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         if (_verses == null) {
           await _getTranscript();
         }
-        _readyForDispatch = true;
-        widget.updateDispatch(true);
-        if (_letsGo) {
-          if (!mounted) {
-            return;
-          }
-          if (_verses == null || _verses.isEmpty) {
-            _previewUnavailableMsg();
-          } else {
-            _startedSpeaking =
-                ((_verses[0].get('mouth')['opens'] * 1000).toInt()) - 250;
-            if (_startedSpeaking < 0) {
-              _startedSpeaking = 0;
+        _thereIsAnError = _verses == null || _verses.isEmpty;
+        if (_thereIsAnError) {
+          _registerError();
+        } else {
+          _readyForDispatch = true;
+          widget.updateDispatch(_readyForDispatch);
+          if (_isTryingToLeavePage) {
+            if (!mounted) {
+              return;
             }
-            _finishedSpeaking =
-                (_verses[_verses.length - 1].get('mouth')['closes'] * 1000)
-                        .toInt() +
-                    250;
-            Navigator.of(context).pushReplacement(
-                CupertinoPageRoute(builder: (BuildContext context) {
-              return PreviewPage(
-                finishedSpeaking: _finishedSpeaking,
-                name: widget.caption.trim(),
-                startedRecording: widget.startedRecording,
-                startedSpeaking: _startedSpeaking,
-                audioPlayer: widget.audioPlayer,
-                caption: _name.trim(),
-                shmoozeId: widget.shmoozeId,
-                audioRecordingUrl: _audioRecordingUrl,
-                verses: _verses,
-              );
-            }));
+            _navigateToPreviewPage();
           }
         }
       }
@@ -306,10 +240,10 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
     super.initState();
     _thereIsAnError = false;
     _name = widget.name;
-    _textEditingController.text = widget.name.trim();
+    _textEditingController.text = _name;
     _verses = widget.verses;
     _audioRecordingUrl = widget.audioRecordingUrl;
-    _letsGo = false;
+    _isTryingToLeavePage = false;
     _readyForDispatch = widget.readyForDispatch;
     if (!_readyForDispatch) {
       _setupStream();
@@ -384,7 +318,15 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
               Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
-                    onTap: _showErrorMsg,
+                    onTap: () {
+                      _showErrorMsg('Too short',
+                              'Caption must have at least three characters.')
+                          .then((_) {
+                        _focusNode.requestFocus();
+                      }).catchError((error) {
+                        print(error);
+                      });
+                    },
                     child: TextButton(
                         onPressed: !_isValid ? null : _onNext,
                         child: Text(
@@ -403,5 +345,3 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
     );
   }
 }
-
-

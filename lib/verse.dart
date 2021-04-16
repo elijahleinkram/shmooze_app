@@ -11,33 +11,27 @@ class Verse extends StatefulWidget {
   final dynamic quote;
   final bool isPlaying;
   final dynamic opensMouth;
-  final dynamic startedRecording;
   final int index;
   final int length;
   final dynamic photoUrl;
   final AudioPlayer audioPlayer;
   final ValueKey<dynamic> key;
   final Function(int index) updateLineNumber;
-  final bool isPreview;
   final Function(double volume) changeVolumeTo;
-  final double currentVolume;
   final bool isMuted;
 
   Verse({
     @required this.updateLineNumber,
     @required this.changeVolumeTo,
-    @required this.currentVolume,
     @required this.isMuted,
     @required this.photoUrl,
     @required this.displayName,
     @required this.quote,
     @required this.isPlaying,
-    @required this.startedRecording,
     @required this.opensMouth,
     @required this.audioPlayer,
     @required this.index,
     @required this.length,
-    @required this.isPreview,
     @required this.key,
   }) : super(key: key);
 
@@ -50,10 +44,8 @@ class _VerseState extends State<Verse> {
   Widget _bottomWidget;
 
   String _getTime() {
-    final int millisecondsSinceEpoch =
-        widget.startedRecording.toInt() + (widget.opensMouth * 1000).toInt();
     final DateTime dateTime =
-        DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch);
+        DateTime.fromMillisecondsSinceEpoch(widget.opensMouth);
     int hours = dateTime.hour;
     bool isPm = false;
     if (hours >= 12) {
@@ -202,16 +194,22 @@ class _VerseState extends State<Verse> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
+                    if (!widget.isPlaying) {
+                      widget.updateLineNumber(widget.index);
+                    }
                     if (widget.isMuted) {
                       widget.changeVolumeTo(1.0);
+                      widget.audioPlayer
+                          .seek(Duration(milliseconds: (widget.opensMouth)));
                     } else {
                       if (widget.isPlaying) {
                         widget.changeVolumeTo(0.0);
+                      } else {
+                        widget.changeVolumeTo(1.0);
+                        widget.audioPlayer
+                            .seek(Duration(milliseconds: (widget.opensMouth)));
                       }
                     }
-                    widget.audioPlayer.seek(Duration(
-                        milliseconds: (widget.opensMouth * 1000).toInt()));
-                    widget.updateLineNumber(widget.index);
                   },
                 ),
               ),

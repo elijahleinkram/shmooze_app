@@ -11,10 +11,10 @@ import 'package:shmooze/scripture.dart';
 import 'main.dart';
 
 class MainStage extends StatefulWidget {
-  final Future<void> Function() prepareForDispatch;
+  final Future<void> Function() uploadShmooze;
 
   MainStage({
-    @required this.prepareForDispatch,
+    @required this.uploadShmooze,
   });
 
   @override
@@ -30,11 +30,10 @@ class _MainStageState extends State<MainStage>
   final List<AudioPlayer> _audioPlayers = [];
   bool _isLoadingShmooze;
   final List<ValueKey<dynamic>> _keys = [];
-  final int _firstPage = 0;
   bool _isRefreshing;
   int _pageLimit = 5;
   final Set<String> _hasPlayed = {};
-  int _refreshCount;
+  String _refreshToken;
   final PreloadPageController _pageController = PreloadPageController();
   bool _hasLeftTheStage;
 
@@ -70,7 +69,7 @@ class _MainStageState extends State<MainStage>
     if (isEmpty) {
       return false;
     }
-    final newTime = _shmoozes.last['timestamp'];
+    final newTime = _shmoozes.last['timeCreated'];
     return newTime != oldTime;
   }
 
@@ -99,42 +98,45 @@ class _MainStageState extends State<MainStage>
     _clearAudioPlayers();
   }
 
-  Future<void> _getShmoozes(bool resetAndGet) async {
-    int beforeTime;
+  Future<void> _getShmoozes(bool refreshMode) async {
+    int afterTime;
     bool isEmpty = _shmoozes.isEmpty;
-    if (isEmpty || resetAndGet) {
-      beforeTime = await getCurrentTime();
+    if (isEmpty || refreshMode) {
+      afterTime = await getCurrentTime();
     } else {
-      beforeTime = _shmoozes.last['timestamp'];
+      afterTime = _shmoozes.last['timeCreated'];
     }
     final HttpsCallableResult result =
         await FirebaseFunctions.instance.httpsCallable('getShmoozes').call({
-      'beforeTime': beforeTime,
+      'afterTime': afterTime,
     }).catchError((error) {
       print(error);
     });
-    if (!resetAndGet) {
-      if (_isRefreshing || _hasRefreshedPage(beforeTime, isEmpty)) {
+    if (!refreshMode) {
+      bool wasEmpty = isEmpty;
+      if (_isRefreshing || _hasRefreshedPage(afterTime, wasEmpty)) {
         return;
       }
     } else {
       if (result != null && result.data != null) {
         if (result.data.first.first.isNotEmpty) {
-          if (result.data.first.first['id'] == _shmoozes.first['id']) {
+          if (result.data.first.first['shmoozeId'] ==
+              _shmoozes.first['shmoozeId']) {
             return;
           }
         }
       }
+      _issueNewRefreshToken();
     }
     if (result != null && result.data != null) {
       List<dynamic> resultData = result.data;
       int from;
-      if (resetAndGet) {
+      if (refreshMode) {
         from = 0;
       } else {
         from = _shmoozes.length;
       }
-      if (resetAndGet) {
+      if (refreshMode) {
         _clearData();
       }
       for (int i = 0; i < resultData.first.length; i++) {
@@ -144,7 +146,14 @@ class _MainStageState extends State<MainStage>
         _shmoozes.add(shmooze);
       }
       for (int i = 0; i < resultData.last.length; i++) {
-        _scripts.add(resultData.last[i]);
+        final dynamic verses = [];
+        for (int j = 0; j < resultData.last[i].length; j++) {
+          final dynamic verse = resultData.last[i][j];
+          verse['mouth']['opens'] = verse['mouth']['opens'].toInt();
+          verse['mouth']['closes'] = verse['mouth']['closes'].toInt();
+          verses.add(verse);
+        }
+        _scripts.add(verses);
       }
       int until = _shmoozes.length;
       _setupAudioPlayers(from, until);
@@ -158,8 +167,8 @@ class _MainStageState extends State<MainStage>
   void _cutKeys(int from, int until) {
     for (int i = from; i < until; i++) {
       final dynamic shmooze = _shmoozes[i];
-      final dynamic id = shmooze['id'];
-      _keys.add(ValueKey(id + ' ' + _refreshCount.toString()));
+      final dynamic shmoozeId = shmooze['shmoozeId'];
+      _keys.add(ValueKey(shmoozeId + ' ' + _refreshToken));
     }
   }
 
@@ -179,7 +188,7 @@ class _MainStageState extends State<MainStage>
   }
 
   bool _isCloseToTheEnd() {
-    return _pageController.page >= _shmoozes.length - 4;
+    return _pageController.page >= _shmoozes.length - 5;
   }
 
   bool _noMoreShmoozes() {
@@ -243,11 +252,15 @@ class _MainStageState extends State<MainStage>
     _currentPage = newPage;
   }
 
+  bool _shmoozeExists(int index) {
+    return index < _shmoozes.length;
+  }
+
   void _updatePlayer(int newPage) {
     final int exceptFor = newPage;
     _pauseAudio(exceptFor);
     final int index = newPage;
-    if (index < _shmoozes.length) {
+    if (_shmoozeExists(index)) {
       _playAudio(index);
     }
   }
@@ -267,7 +280,7 @@ class _MainStageState extends State<MainStage>
     return _shmoozes.isNotEmpty;
   }
 
-  void _pageListener() {
+  void _onPageSwipe() {
     if (_isRefreshing) {
       return;
     }
@@ -285,7 +298,7 @@ class _MainStageState extends State<MainStage>
   void _setupAudioPlayers(int from, int until) {
     for (int i = from; i < until; i++) {
       final dynamic shmooze = _shmoozes[i];
-      final dynamic playerId = shmooze['id'] + ' ' + _refreshCount.toString();
+      final dynamic playerId = shmooze['shmoozeId'] + ' ' + _refreshToken;
       final dynamic audioRecordingUrl = shmooze['audioRecordingUrl'];
       final AudioPlayer audioPlayer = AudioPlayer(playerId: playerId)
         ..setReleaseMode(ReleaseMode.LOOP).catchError((error) {
@@ -312,20 +325,24 @@ class _MainStageState extends State<MainStage>
   Future<void> _getFirstBatchOfShmoozes() async {
     await _getShmoozes(false);
     if (_hasShmoozes()) {
-      _playAudio(_firstPage);
+      _playAudio(0);
     }
+  }
+
+  void _issueNewRefreshToken() {
+    int refreshCount = int.parse(_refreshToken);
+    _refreshToken = (refreshCount + 1).toString();
   }
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) {
       return;
     }
-    _refreshCount++;
     _toggleIsRefreshing();
-    final String oldFirstShmooze = _shmoozes.first['id'];
+    final String oldFirstShmooze = _shmoozes.first['shmoozeId'];
     await _getShmoozes(true);
     if (_hasShmoozes()) {
-      final String newFirstShmooze = _shmoozes.first['id'];
+      final String newFirstShmooze = _shmoozes.first['shmoozeId'];
       if (oldFirstShmooze != newFirstShmooze) {
         _pageController.animateToPage(0,
             duration: Duration(milliseconds: 1000 ~/ 3),
@@ -333,20 +350,18 @@ class _MainStageState extends State<MainStage>
       }
     }
     _toggleIsRefreshing();
-    _pageListener();
+    _onPageSwipe();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (_hasShmoozes()) {
-      if (state == AppLifecycleState.resumed) {
-        if (_currentPage < _shmoozes.length) {
-          _playAudio(_currentPage);
-        }
-      } else {
-        _pauseAudio(-1);
+    if (state == AppLifecycleState.resumed) {
+      if (_shmoozeExists(_currentPage)) {
+        _playAudio(_currentPage);
       }
+    } else {
+      _pauseAudio(-1);
     }
   }
 
@@ -354,16 +369,16 @@ class _MainStageState extends State<MainStage>
   void initState() {
     super.initState();
     _hasLeftTheStage = false;
-    _refreshCount = 0;
+    _refreshToken = '0';
     WidgetsBinding.instance.addObserver(this);
-    _currentPage = _firstPage;
+    _currentPage = 0;
     _isRefreshing = false;
     _numberOfShmoozes = 5;
     _isLoadingShmooze = false;
     _listenToShmoozeCount();
-    _pageController.addListener(_pageListener);
-    if (widget.prepareForDispatch != null) {
-      widget.prepareForDispatch().then((_) async {
+    _pageController.addListener(_onPageSwipe);
+    if (widget.uploadShmooze != null) {
+      widget.uploadShmooze().then((_) async {
         _getFirstBatchOfShmoozes();
       }).catchError((error) {
         print(error);
@@ -377,10 +392,8 @@ class _MainStageState extends State<MainStage>
   void didPopNext() {
     if (_hasLeftTheStage) {
       _hasLeftTheStage = false;
-      if (_hasShmoozes()) {
-        if (_currentPage < _shmoozes.length) {
-          _playAudio(_currentPage);
-        }
+      if (_shmoozeExists(_currentPage)) {
+        _playAudio(_currentPage);
       }
     }
   }
@@ -388,9 +401,7 @@ class _MainStageState extends State<MainStage>
   void didPushNext() {
     if (!_hasLeftTheStage) {
       _hasLeftTheStage = true;
-      if (_hasShmoozes()) {
-        _pauseAudio(-1);
-      }
+      _pauseAudio(-1);
     }
   }
 
@@ -417,7 +428,6 @@ class _MainStageState extends State<MainStage>
           final dynamic shmooze = _shmoozes[index];
           final dynamic name = shmooze['name'];
           final dynamic caption = shmooze['caption'];
-          final dynamic startedRecording = shmooze['startedRecording'];
           final dynamic startedSpeaking = shmooze['startedSpeaking'];
           final dynamic finishedSpeaking = shmooze['finishedSpeaking'];
           final dynamic audioRecordingUrl = shmooze['audioRecordingUrl'];
@@ -431,10 +441,9 @@ class _MainStageState extends State<MainStage>
             name: name,
             caption: caption,
             index: index,
-            refreshCount: _refreshCount,
+            refreshToken: _refreshToken,
             onRefresh: _onRefresh,
             key: key,
-            startedRecording: startedRecording,
             audioRecordingUrl: audioRecordingUrl,
             verses: verses,
             audioPlayer: audioPlayer,

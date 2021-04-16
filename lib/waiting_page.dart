@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class WaitingPage extends StatelessWidget {
-  final String displayName;
+  final String receiverDisplayName;
   final bool isSender;
 
-  WaitingPage({@required this.displayName, @required this.isSender});
+  WaitingPage({@required this.receiverDisplayName, @required this.isSender});
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +22,9 @@ class WaitingPage extends StatelessWidget {
             Expanded(
               child: AutoSizeText(
                   this.isSender
-                      ? 'Waiting for ${this.displayName} to join the shmooze...'
+                      ? 'Waiting for ${this.receiverDisplayName} to join the shmooze...'
                       : 'Connecting to shmooze...',
                   textAlign: TextAlign.center,
-                  maxLines: null,
                   style: GoogleFonts.roboto(
                     color: CupertinoColors.black,
                     fontWeight: FontWeight.w400,
