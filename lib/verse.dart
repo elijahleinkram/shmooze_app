@@ -19,9 +19,11 @@ class Verse extends StatefulWidget {
   final Function(int index) updateLineNumber;
   final Function(double volume) changeVolumeTo;
   final bool isMuted;
+  final dynamic startedRecording;
 
   Verse({
     @required this.updateLineNumber,
+    @required this.startedRecording,
     @required this.changeVolumeTo,
     @required this.isMuted,
     @required this.photoUrl,
@@ -65,14 +67,14 @@ class _VerseState extends State<Verse> {
     if (widget.isPlaying) {
       if (widget.isMuted) {
         return Icon(
-          Ionicons.ios_volume_mute,
-          size: 17.5 * 0.75,
+          FontAwesome5Solid.volume_mute,
+          size: 17.5 * 2 / 3,
           color: CupertinoColors.activeBlue,
         );
       } else {
         return Icon(
-          Ionicons.ios_volume_high,
-          size: 17.5 * 0.75,
+          FontAwesome5Solid.volume_up,
+          size: 17.5 * 2 / 3,
           color: CupertinoColors.activeBlue,
         );
       }
@@ -175,13 +177,9 @@ class _VerseState extends State<Verse> {
                       ),
                       Stack(
                         children: [
-                          Icon(Ionicons.ios_volume_high,
-                              size: 17.5, color: Colors.transparent),
-                          AnimatedSwitcher(
-                            duration:
-                                Duration(milliseconds: 1000 ~/ (10 * 2 / 3)),
-                            child: _trailingIcon(),
-                          )
+                          Icon(FontAwesome5Solid.volume_up,
+                              size: 17.5 * 2 / 3, color: Colors.transparent),
+                          _trailingIcon(),
                         ],
                       )
                     ],
@@ -193,22 +191,32 @@ class _VerseState extends State<Verse> {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {
-                    if (!widget.isPlaying) {
-                      widget.updateLineNumber(widget.index);
-                    }
+                  onTap: () async {
                     if (widget.isMuted) {
                       widget.changeVolumeTo(1.0);
                       widget.audioPlayer
-                          .seek(Duration(milliseconds: (widget.opensMouth)));
+                          .seek(Duration(
+                              milliseconds: (widget.opensMouth -
+                                  widget.startedRecording)))
+                          .catchError((error) {
+                        print(error);
+                      });
                     } else {
                       if (widget.isPlaying) {
                         widget.changeVolumeTo(0.0);
                       } else {
                         widget.changeVolumeTo(1.0);
                         widget.audioPlayer
-                            .seek(Duration(milliseconds: (widget.opensMouth)));
+                            .seek(Duration(
+                                milliseconds: (widget.opensMouth -
+                                    widget.startedRecording)))
+                            .catchError((error) {
+                          print(error);
+                        });
                       }
+                    }
+                    if (!widget.isPlaying) {
+                      widget.updateLineNumber(widget.index);
                     }
                   },
                 ),

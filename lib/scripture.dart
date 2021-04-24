@@ -6,7 +6,6 @@ import 'package:shmooze/about.dart';
 import 'package:shmooze/verse.dart';
 
 class Scripture extends StatefulWidget {
-  final dynamic audioRecordingUrl;
   final dynamic verses;
   final AudioPlayer audioPlayer;
   final ValueKey<dynamic> key;
@@ -17,14 +16,15 @@ class Scripture extends StatefulWidget {
   final String name;
   final String caption;
   final int Function() getCurrentPage;
-  final dynamic startedSpeaking;
-  final dynamic finishedSpeaking;
+  final dynamic startedRecording;
+  final dynamic playFrom;
+  final dynamic playUntil;
 
   Scripture(
-      {@required this.startedSpeaking,
-      @required this.finishedSpeaking,
+      {@required this.startedRecording,
+      @required this.playFrom,
+      @required this.playUntil,
       @required this.getCurrentPage,
-      @required this.audioRecordingUrl,
       @required this.verses,
       @required this.audioPlayer,
       @required this.onRefresh,
@@ -57,6 +57,10 @@ class _ScriptureState extends State<Scripture>
     return widget.index == widget.getCurrentPage();
   }
 
+  bool _isSpeakingForTooLong(Duration duration) {
+    return duration.inMilliseconds > widget.playUntil;
+  }
+
   void _startStreams() {
     final Stream<AudioPlayerState> audioPlayerStream =
         widget.audioPlayer.onPlayerStateChanged;
@@ -73,13 +77,14 @@ class _ScriptureState extends State<Scripture>
         }
       }
     });
+
     _positionSubscription = positionStream.listen((Duration duration) {
-      if (duration.inMilliseconds < widget.verses[0]['mouth']['closes']) {
+      if (duration.inMilliseconds < widget.playFrom) {
         _updateLineNumber(0);
-      } else if (duration.inMilliseconds > widget.finishedSpeaking) {
+      } else if (_isSpeakingForTooLong(duration)) {
         _updateLineNumber(0);
         widget.audioPlayer
-            .seek(Duration(milliseconds: widget.startedSpeaking))
+            .seek(Duration(milliseconds: widget.playFrom))
             .catchError((error) {
           print(error);
         });
@@ -87,7 +92,7 @@ class _ScriptureState extends State<Scripture>
         for (int i = _lineNumber; i < widget.verses.length; i++) {
           final dynamic verse = widget.verses[i];
           final int closesMouth = (verse['mouth']['closes']);
-          if (closesMouth > duration.inMilliseconds) {
+          if (closesMouth > widget.startedRecording + duration.inMilliseconds) {
             if (_lineNumber != i) {
               _lineNumber = i;
               if (mounted) {
@@ -126,7 +131,7 @@ class _ScriptureState extends State<Scripture>
         });
       }
       widget.audioPlayer
-          .seek(Duration(milliseconds: widget.startedSpeaking))
+          .seek(Duration(milliseconds: widget.playFrom))
           .catchError((error) {
         print(error);
       });
@@ -237,6 +242,7 @@ class _ScriptureState extends State<Scripture>
             About(
               caption: widget.caption,
               name: widget.name,
+              horizontalPadding: MediaQuery.of(context).size.width / 15,
             )
           ]),
         ),
@@ -249,6 +255,7 @@ class _ScriptureState extends State<Scripture>
             final dynamic photoUrl = verse['photoUrl'];
             final dynamic opensMouth = verse['mouth']['opens'];
             return Verse(
+              startedRecording: widget.startedRecording,
               changeVolumeTo: _changeVolumeTo,
               isMuted: _isMuted(),
               key: _keys[index],

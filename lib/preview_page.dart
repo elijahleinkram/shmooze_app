@@ -15,8 +15,9 @@ class PreviewPage extends StatefulWidget {
   final String audioRecordingUrl;
   final List<DocumentSnapshot> verses;
   final AudioPlayer audioPlayer;
-  final dynamic startedSpeaking;
-  final dynamic finishedSpeaking;
+  final dynamic playFrom;
+  final dynamic playUntil;
+  final dynamic startedRecording;
   final String senderUid;
   final String receiverUid;
   final String senderDisplayName;
@@ -28,15 +29,16 @@ class PreviewPage extends StatefulWidget {
       {@required this.caption,
       @required this.senderDisplayName,
       @required this.senderPhotoUrl,
+      @required this.startedRecording,
       @required this.receiverDisplayName,
       @required this.receiverPhotoUrl,
       @required this.shmoozeId,
       @required this.senderUid,
       @required this.receiverUid,
-      @required this.finishedSpeaking,
+      @required this.playFrom,
       @required this.name,
       @required this.audioPlayer,
-      @required this.startedSpeaking,
+      @required this.playUntil,
       @required this.verses,
       @required this.audioRecordingUrl});
 
@@ -52,6 +54,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       'shmoozeId': widget.shmoozeId,
       'caption': widget.caption,
       'name': widget.name,
+      'senderUid': widget.senderUid,
+      'receiverUid': widget.receiverUid,
     }).catchError((error) {
       print(error);
     });
@@ -88,7 +92,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
             stayAwake: true,
             volume: 1.0,
             position: Duration(
-              milliseconds: widget.startedSpeaking,
+              milliseconds: widget.playFrom,
             ))
         .catchError((error) {
       widget.audioPlayer.resume().catchError((error) {
@@ -140,7 +144,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       print(error);
     });
     widget.audioPlayer
-        .seek(Duration(milliseconds: widget.startedSpeaking))
+        .seek(Duration(milliseconds: widget.playFrom))
         .catchError((error) {
       print(error);
     });
@@ -207,18 +211,16 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
             ],
           )),
       body: Scripture(
-        startedSpeaking: widget.startedSpeaking,
-        finishedSpeaking: widget.finishedSpeaking,
-        caption: widget.caption.endsWith('.') ||
-                widget.caption.endsWith('?') ||
-                widget.caption.endsWith('!')
-            ? ' ' + widget.caption
-            : ' ' + widget.caption + '.',
-        name: widget.name.endsWith('.') ||
-                widget.name.endsWith('?') ||
-                widget.name.endsWith('!')
-            ? widget.name
-            : widget.name + ',',
+        playFrom: widget.playFrom,
+        playUntil: widget.playUntil,
+        startedRecording: widget.startedRecording,
+        caption: widget.caption,
+        name: '',
+        // name:' widget.name.endsWith('.') ||
+        //         widget.name.endsWith('?') ||
+        //         widget.name.endsWith('!')
+        //     ? widget.name
+        //     : widget.name + ','',
         getCurrentPage: () {
           return 0;
         },
@@ -229,8 +231,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         key: _key,
         verses: _verses,
         audioPlayer: widget.audioPlayer,
-        audioRecordingUrl: widget.audioRecordingUrl,
       ),
     );
   }
 }
+

@@ -28,7 +28,7 @@ class _HomeState extends State<Home> {
         .orderBy('displayName', descending: false)
         .snapshots();
     _userSubscription = stream.listen((QuerySnapshot qs) {
-      if (qs != null && qs.docs.isNotEmpty) {
+      if (qs != null && qs.docs != null) {
         if (Human.uid == null) {
           Human.others = qs.docs;
         } else {

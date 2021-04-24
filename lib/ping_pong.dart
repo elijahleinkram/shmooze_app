@@ -1,17 +1,15 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:agora_rtc_engine/rtc_engine.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shmooze/recording_page.dart';
-import 'package:shmooze/shmooze_captioner.dart';
+import 'package:shmooze/shmooze_namer.dart';
 import 'package:shmooze/waiting_page.dart';
 import 'constants.dart';
 import 'human.dart';
@@ -42,8 +40,7 @@ class _PingPongState extends State<PingPong> {
   bool _isConnected;
   StreamSubscription<DocumentSnapshot> _inviteSubscription;
   RtcEngine _engine;
-  final int _extraMillis = 1000 ~/ 3;
-  String _shmoozeFilePath;
+  final int _extraMillis = (1000 ~/ 3) * 2;
   bool _hasFinished;
   bool _pauseScreen;
   String _caption;
@@ -62,29 +59,13 @@ class _PingPongState extends State<PingPong> {
   String _inviteId;
   bool _isReceiver;
   bool _senderHasAbandonedTheShmooze;
-  String _sid;
-  String _resourceId;
-
-  Future<String> _getTmpFile(String filename) async {
-    Directory tempDir =
-        await getApplicationDocumentsDirectory().catchError((error) {
-      print(error);
-    });
-    if (tempDir == null) {
-      return null;
-    }
-    String tempPath = tempDir.path;
-    File tempFile = File('$tempPath/$filename');
-    return tempFile.path;
-  }
-
-  void _updateCaption(String caption) {
-    _caption = caption;
-  }
-
-  void _updateName(String name) {
-    _name = name;
-  }
+  String _groupSid;
+  String _groupResourceId;
+  String _individualSid;
+  String _individualResourceId;
+  String _appId;
+  Map<String, Map<String, String>> _shmoozeSnapshot;
+  int _startedRecording;
 
   void _endShmoozeForSender() {
     if (_canGoThroughCheckpoint()) {
@@ -104,8 +85,10 @@ class _PingPongState extends State<PingPong> {
       'inviteId': _inviteId,
     }).then((HttpsCallableResult result) {
       if (result != null && result.data != null) {
-        _sid = result.data[0];
-        _resourceId = result.data[1];
+        _individualSid = result.data[0];
+        _individualResourceId = result.data[1];
+        _groupSid = result.data[2];
+        _groupResourceId = result.data[3];
         if (_hasFinished) {
           _stopAudioRecording();
         }
@@ -113,6 +96,18 @@ class _PingPongState extends State<PingPong> {
     }).catchError((error) {
       print(error);
     });
+  }
+
+  Future<void> _getAgoraApi() async {
+    try {
+      final RemoteConfig remoteConfig = RemoteConfig.instance;
+      await remoteConfig.fetchAndActivate().catchError((error) {
+        print(error);
+      });
+      _appId = remoteConfig.getValue('appId').asString();
+    } catch (e) {
+      print(e);
+    }
   }
 
   void _initEventHandlers() {
@@ -128,20 +123,6 @@ class _PingPongState extends State<PingPong> {
         _engine.setEnableSpeakerphone(true).catchError((error) {
           print(error);
         });
-        _shmoozeFilePath =
-            await _getTmpFile('pod${await getCurrentTime()}.wav');
-        if (_shmoozeFilePath == null) {
-          if (_canGoThroughCheckpoint()) {
-            _retreat('Something unexpected happened, please try again later.');
-          }
-        } else {
-          _engine
-              .startAudioRecording(_shmoozeFilePath,
-                  AudioSampleRateType.Type48000, AudioRecordingQuality.High)
-              .catchError((error) {
-            print(error);
-          });
-        }
       }));
     } else {
       _engine.setEventHandler(RtcEngineEventHandler(userOffline: (_, __) {
@@ -167,9 +148,14 @@ class _PingPongState extends State<PingPong> {
     if (_hasInitializedEngine) {
       return;
     }
+    if (_appId == null) {
+      await _getAgoraApi();
+    }
+    if (_appId == null) {
+      return;
+    }
     _hasInitializedEngine = true;
-    _engine = await RtcEngine.createWithConfig(
-        RtcEngineConfig('c63e3b70b6fb457f9be76b45b48dd779'));
+    _engine = await RtcEngine.createWithConfig(RtcEngineConfig(_appId));
     if (_hasInitializedEngine == false) {
       _engine?.destroy()?.catchError((error) {
         print(error);
@@ -433,8 +419,6 @@ class _PingPongState extends State<PingPong> {
         false) {
       if (_canGoThroughCheckpoint()) {
         _finishShmooze();
-        _uploadAudioRecordingUrl();
-
         _destroyEngineAndStream();
         _navigateToCaptioner();
         SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -449,65 +433,37 @@ class _PingPongState extends State<PingPong> {
     }
   }
 
-  void _updateAudioRecordingUrl(String audioRecordingUrl) {
-    _audioRecordingUrl = audioRecordingUrl;
-  }
-
-  void _updateVerses(List<DocumentSnapshot> verses) {
-    _verses = verses;
-  }
-
-  void _updateDispatch(bool readyForDispatch) {
-    _readyForDispatch = readyForDispatch;
-  }
-
-  void _uploadAudioRecordingUrl() {
-    if (_shmoozeFilePath == null) {
-      return;
-    }
-    final UploadTask uploadTask = FirebaseStorage.instance
-        .ref('users/${Human.uid}/shmoozes/$_shmoozeId')
-        .putFile(
-            File(_shmoozeFilePath), SettableMetadata(contentType: 'audio/wav'));
-    uploadTask.whenComplete(() async {
-      try {
-        final String audioRecordingUrl = await FirebaseStorage.instance
-            .ref('users/${Human.uid}/shmoozes/$_shmoozeId')
-            .getDownloadURL()
-            .catchError((error) {
-          print(error);
-        });
-        if (_audioRecordingUrl == null && audioRecordingUrl != null) {
-          _updateAudioRecordingUrl(audioRecordingUrl);
-          _audioPlayer.setUrl(audioRecordingUrl).catchError((error) {
-            print(error);
-          });
-        }
-      } catch (onError) {
-        print(onError);
-      }
-    });
+  void _updateVariables(
+      {String name,
+      List<DocumentSnapshot> verses,
+      String audioRecordingUrl,
+      bool readyForDispatch,
+      int startedRecording,
+      String caption}) {
+    _name = name ?? _name;
+    _verses = verses ?? _verses;
+    _audioRecordingUrl = audioRecordingUrl ?? _audioRecordingUrl;
+    _readyForDispatch = readyForDispatch ?? _readyForDispatch;
+    _startedRecording = startedRecording ?? _startedRecording;
+    _caption = caption ?? _caption;
   }
 
   void _navigateToCaptioner() {
     Navigator.of(context)
         .push(CupertinoPageRoute(builder: (BuildContext context) {
-      return ShmoozeCaptioner(
+      return ShmoozeNamer(
+        updateVariables: _updateVariables,
+        startedRecording: _startedRecording,
+        shmoozeSnapshot: _shmoozeSnapshot,
         shmoozeId: _shmoozeId,
         caption: _caption,
         name: _name,
-        updateName: _updateName,
-        updateCaption: _updateCaption,
         readyForDispatch: _readyForDispatch,
-        updateDispatch: _updateDispatch,
         verses: _verses,
         audioPlayer: _audioPlayer,
-        updateVerses: _updateVerses,
         audioRecordingUrl: _audioRecordingUrl,
-        updateAudioRecordingUrl: _updateAudioRecordingUrl,
-        senderUid: widget.senderUid,
-        inviteId: _inviteId,
-        shmoozeFile: File(_shmoozeFilePath),
+        // senderUid: widget.senderUid,
+        // inviteId: _inviteId,
       );
     }));
   }
@@ -528,8 +484,10 @@ class _PingPongState extends State<PingPong> {
 
   void _stopAudioRecording() {
     FirebaseFunctions.instance.httpsCallable('stopAudioRecording').call({
-      'sid': _sid,
-      'resourceId': _resourceId,
+      'individualSid': _individualSid,
+      'individualResourceId': _individualResourceId,
+      'groupSid': _groupSid,
+      'groupResourceId': _groupResourceId,
       'receiverUid': widget.receiverUid,
       'senderUid': widget.senderUid,
       'inviteId': _inviteId,
@@ -538,7 +496,10 @@ class _PingPongState extends State<PingPong> {
   }
 
   bool _shouldStopAudioRecording() {
-    return _sid != null && _resourceId != null;
+    return _individualSid != null &&
+        _individualResourceId != null &&
+        _groupSid != null &&
+        _groupResourceId != null;
   }
 
   void _finishShmooze() {
@@ -560,9 +521,7 @@ class _PingPongState extends State<PingPong> {
 
   void _endShmoozeEarly() {
     _finishShmooze();
-    _uploadAudioRecordingUrl();
     _destroyEngineAndStream();
-
     _letsProceed('${widget.displayName} has left the shmooze.',
         ['End shmooze early']).then((_) {
       if (!mounted) {
@@ -778,14 +737,26 @@ class _PingPongState extends State<PingPong> {
   @override
   void initState() {
     super.initState();
+    _getAgoraApi();
+    _shmoozeSnapshot = {
+      'sender': {
+        'uid': Human.uid,
+        'photoUrl': Human.photoUrl,
+        'displayName': Human.displayName,
+      },
+      'receiver': {
+        'uid': widget.receiverUid,
+        'photoUrl': widget.photoUrl,
+        'displayName': widget.displayName,
+      }
+    };
     _senderHasAbandonedTheShmooze = false;
     _shmoozeId = widget.shmoozeId;
     _inviteId = widget.inviteId;
     _hasInitializedEngine = false;
     _showThatWeAreFinished = false;
     _hasBeenDestroyed = false;
-    _caption = '';
-    _name = '';
+    _name = _caption = '';
     _readyForDispatch = false;
     _hasFinished = false;
     _pauseScreen = false;

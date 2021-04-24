@@ -35,7 +35,8 @@ class _MainStageState extends State<MainStage>
   final Set<String> _hasPlayed = {};
   String _refreshToken;
   final PreloadPageController _pageController = PreloadPageController();
-  bool _hasLeftTheStage;
+  bool _hasLeftStage;
+  bool _hasLeftApp;
 
   void _listenToShmoozeCount() {
     final Stream<DocumentSnapshot> stream = FirebaseFirestore.instance
@@ -106,10 +107,9 @@ class _MainStageState extends State<MainStage>
     } else {
       afterTime = _shmoozes.last['timeCreated'];
     }
-    final HttpsCallableResult result =
-        await FirebaseFunctions.instance.httpsCallable('getShmoozes').call({
-      'afterTime': afterTime,
-    }).catchError((error) {
+    final HttpsCallableResult result = await FirebaseFunctions.instance
+        .httpsCallable('getShmoozes')
+        .call({'afterTime': afterTime}).catchError((error) {
       print(error);
     });
     if (!refreshMode) {
@@ -141,8 +141,9 @@ class _MainStageState extends State<MainStage>
       }
       for (int i = 0; i < resultData.first.length; i++) {
         final dynamic shmooze = resultData.first[i];
-        shmooze['startedSpeaking'] = shmooze['startedSpeaking'].toInt();
-        shmooze['finishedSpeaking'] = shmooze['finishedSpeaking'].toInt();
+        shmooze['play']['from'] = shmooze['play']['from'].toInt();
+        shmooze['play']['until'] = shmooze['play']['until'].toInt();
+        shmooze['startedRecording'] = shmooze['startedRecording'].toInt();
         _shmoozes.add(shmooze);
       }
       for (int i = 0; i < resultData.last.length; i++) {
@@ -212,10 +213,17 @@ class _MainStageState extends State<MainStage>
     return oldPage != newPage;
   }
 
+  bool _canPlay() {
+    return !_hasLeftStage && !_hasLeftApp;
+  }
+
   void _playAudio(int index) {
+    if (!_canPlay()) {
+      return;
+    }
     final AudioPlayer audioPlayer = _audioPlayers[index];
     final dynamic shmooze = _shmoozes[index];
-    final dynamic startedSpeaking = shmooze['startedSpeaking'];
+    final dynamic playFrom = shmooze['play']['from'];
     final dynamic audioRecordingUrl = shmooze['audioRecordingUrl'];
     if (_hasPlayed.contains(audioPlayer.playerId)) {
       audioPlayer.resume().catchError((error) {
@@ -228,7 +236,7 @@ class _MainStageState extends State<MainStage>
               stayAwake: true,
               volume: 1.0,
               position: Duration(
-                milliseconds: startedSpeaking,
+                milliseconds: playFrom,
               ))
           .catchError((error) {
         print(error);
@@ -304,7 +312,9 @@ class _MainStageState extends State<MainStage>
         ..setReleaseMode(ReleaseMode.LOOP).catchError((error) {
           print(error);
         });
-      audioPlayer.setUrl(audioRecordingUrl);
+      audioPlayer.setUrl(audioRecordingUrl).catchError((error) {
+        print(error);
+      });
       _audioPlayers.add(audioPlayer);
     }
   }
@@ -357,18 +367,25 @@ class _MainStageState extends State<MainStage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      if (_shmoozeExists(_currentPage)) {
-        _playAudio(_currentPage);
+      if (_hasLeftApp) {
+        _hasLeftApp = false;
+        if (_shmoozeExists(_currentPage)) {
+          _playAudio(_currentPage);
+        }
       }
     } else {
-      _pauseAudio(-1);
+      if (!_hasLeftApp) {
+        _hasLeftApp = true;
+        _pauseAudio(-1);
+      }
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _hasLeftTheStage = false;
+    _hasLeftApp = false;
+    _hasLeftStage = false;
     _refreshToken = '0';
     WidgetsBinding.instance.addObserver(this);
     _currentPage = 0;
@@ -390,8 +407,8 @@ class _MainStageState extends State<MainStage>
 
   @override
   void didPopNext() {
-    if (_hasLeftTheStage) {
-      _hasLeftTheStage = false;
+    if (_hasLeftStage) {
+      _hasLeftStage = false;
       if (_shmoozeExists(_currentPage)) {
         _playAudio(_currentPage);
       }
@@ -399,8 +416,8 @@ class _MainStageState extends State<MainStage>
   }
 
   void didPushNext() {
-    if (!_hasLeftTheStage) {
-      _hasLeftTheStage = true;
+    if (!_hasLeftStage) {
+      _hasLeftStage = true;
       _pauseAudio(-1);
     }
   }
@@ -428,15 +445,16 @@ class _MainStageState extends State<MainStage>
           final dynamic shmooze = _shmoozes[index];
           final dynamic name = shmooze['name'];
           final dynamic caption = shmooze['caption'];
-          final dynamic startedSpeaking = shmooze['startedSpeaking'];
-          final dynamic finishedSpeaking = shmooze['finishedSpeaking'];
-          final dynamic audioRecordingUrl = shmooze['audioRecordingUrl'];
+          final dynamic startedRecording = shmooze['startedRecording'];
+          final dynamic playFrom = shmooze['play']['from'];
+          final dynamic playUntil = shmooze['play']['until'];
           final dynamic verses = _scripts[index];
           final AudioPlayer audioPlayer = _audioPlayers[index];
           final ValueKey<dynamic> key = _keys[index];
           return Scripture(
-            startedSpeaking: startedSpeaking,
-            finishedSpeaking: finishedSpeaking,
+            startedRecording: startedRecording,
+            playFrom: playFrom,
+            playUntil: playUntil,
             getCurrentPage: _getCurrentPage,
             name: name,
             caption: caption,
@@ -444,7 +462,6 @@ class _MainStageState extends State<MainStage>
             refreshToken: _refreshToken,
             onRefresh: _onRefresh,
             key: key,
-            audioRecordingUrl: audioRecordingUrl,
             verses: verses,
             audioPlayer: audioPlayer,
             isPreview: false,

@@ -29,7 +29,7 @@ class _ShmoozersState extends State<Shmoozers> {
         .catchError((error) {
       print(error);
     });
-    if (qs != null) {
+    if (qs != null && qs.docs != null) {
       if (Human.uid == null) {
         Human.others = qs.docs;
       } else {

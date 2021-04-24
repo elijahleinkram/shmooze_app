@@ -26,13 +26,12 @@ class _WindowState extends State<Window> {
   }
 
   void _showIncomingShmooze(
-    String inviteId,
-    String senderUid,
-    String senderPhotoUrl,
-    String senderDisplayName,
-    int expiresIn,
-    String shmoozeId,
-  ) {
+      String inviteId,
+      String senderUid,
+      String senderPhotoUrl,
+      String senderDisplayName,
+      int expiresIn,
+      String shmoozeId) {
     _incomingShmooze['inviteId'] = inviteId;
     _incomingShmooze['senderUid'] = senderUid;
     _incomingShmooze['senderPhotoUrl'] = senderPhotoUrl;
@@ -58,7 +57,7 @@ class _WindowState extends State<Window> {
         .limit(1)
         .snapshots();
     _inviteSubscription = stream.listen((QuerySnapshot qs) async {
-      if (qs != null && qs.docs.isNotEmpty) {
+      if (qs != null && qs.docs != null && qs.docs.isNotEmpty) {
         final DocumentSnapshot snapshot = qs.docs.first;
         final int status = snapshot.get('status');
         if (!_isValid(status)) {
