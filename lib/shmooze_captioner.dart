@@ -4,47 +4,36 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shmooze/shmooze_namer.dart';
-import 'dart:io';
 
 class ShmoozeCaptioner extends StatefulWidget {
   final List<DocumentSnapshot> verses;
   final String audioRecordingUrl;
   final bool readyForDispatch;
   final String caption;
-  final int startedRecording;
-  final String inviteId;
-  final List<int> senderSpeakingTimes;
-  final File shmoozeFile;
-  final List<int> receiverSpeakingTimes;
-  final String senderUid;
-  final void Function(String str) updateAudioRecordingUrl;
   final AudioPlayer audioPlayer;
-  final void Function(List<DocumentSnapshot> verses) updateVerses;
-  final void Function(bool readyForDispatch) updateDispatch;
-  final void Function(String caption) updateCaption;
-  final void Function(String caption) updateName;
   final String shmoozeId;
   final String name;
+  final Map<String, Map<String, String>> shmoozeSnapshot;
+  final int startedRecording;
+  final void Function(
+      {String name,
+      List<DocumentSnapshot> verses,
+      String audioRecordingUrl,
+      bool readyForDispatch,
+      int startedRecording,
+      String caption}) updateVariables;
 
   ShmoozeCaptioner({
     @required this.audioPlayer,
+    @required this.updateVariables,
+    @required this.shmoozeSnapshot,
     @required this.shmoozeId,
-    @required this.updateName,
-    @required this.name,
-    @required this.updateCaption,
-    @required this.caption,
-    @required this.shmoozeFile,
-    @required this.verses,
-    @required this.updateDispatch,
-    @required this.audioRecordingUrl,
-    @required this.senderUid,
-    @required this.readyForDispatch,
     @required this.startedRecording,
-    @required this.receiverSpeakingTimes,
-    @required this.senderSpeakingTimes,
-    @required this.inviteId,
-    @required this.updateAudioRecordingUrl,
-    @required this.updateVerses,
+    @required this.name,
+    @required this.caption,
+    @required this.verses,
+    @required this.audioRecordingUrl,
+    @required this.readyForDispatch,
   });
 
   @override
@@ -55,56 +44,55 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
   final FocusNode _focusNode = FocusNode();
   final TextEditingController _textEditingController = TextEditingController();
   bool _isValid;
-  String _audioRecordingUrl;
   List<DocumentSnapshot> _verses;
   bool _readyForDispatch;
   String _caption;
-
   String _name;
+  String _audioRecordingUrl;
+  int _startedRecording;
 
-  void _updateVerses(List<DocumentSnapshot> verses) {
-    _verses = verses;
-    widget.updateVerses(verses);
-  }
-
-  void _updateDispatch(bool readyForDispatch) {
-    _readyForDispatch = readyForDispatch;
-    widget.updateDispatch(readyForDispatch);
-  }
-
-  void _updateAudioRecordingUrl(String audioRecordingUrl) {
-    _audioRecordingUrl = audioRecordingUrl;
-    widget.updateAudioRecordingUrl(audioRecordingUrl);
+  void _updateVariables(
+      {String name,
+      List<DocumentSnapshot> verses,
+      String audioRecordingUrl,
+      bool readyForDispatch,
+      int startedRecording,
+      String caption}) {
+    _name = name ?? _name;
+    _verses = verses ?? _verses;
+    _audioRecordingUrl = audioRecordingUrl ?? _audioRecordingUrl;
+    _readyForDispatch = readyForDispatch ?? _readyForDispatch;
+    _startedRecording = startedRecording ?? _startedRecording;
+    _caption = caption ?? _caption;
+    widget.updateVariables(
+        name: name,
+        verses: verses,
+        audioRecordingUrl: audioRecordingUrl,
+        readyForDispatch: readyForDispatch,
+        startedRecording: startedRecording,
+        caption: caption);
   }
 
   void _onNext() {
     Navigator.of(context)
         .push(CupertinoPageRoute(builder: (BuildContext context) {
       return ShmoozeNamer(
+        shmoozeSnapshot: widget.shmoozeSnapshot,
+        shmoozeId: widget.shmoozeId,
+        audioPlayer: widget.audioPlayer,
+        updateVariables: _updateVariables,
+        startedRecording: _startedRecording,
         name: _name,
         caption: _caption,
-        updateName: (String name) {
-          _name = name;
-          widget.updateName(_name);
-        },
-        audioPlayer: widget.audioPlayer,
         audioRecordingUrl: _audioRecordingUrl,
         readyForDispatch: _readyForDispatch,
-        receiverSpeakingTimes: widget.receiverSpeakingTimes,
-        senderSpeakingTimes: widget.senderSpeakingTimes,
-        shmoozeId: widget.shmoozeId,
-        startedRecording: widget.startedRecording,
-        updateAudioRecordingUrl: _updateAudioRecordingUrl,
-        updateDispatch: _updateDispatch,
-        updateVerses: _updateVerses,
         verses: _verses,
       );
     }));
   }
 
   void _textListener() {
-    _caption = _textEditingController.text.trim();
-    widget.updateCaption(_caption);
+    _updateVariables(caption: _textEditingController.text.trim());
     if (_caption.length >= 3 && !_isValid) {
       _isValid = true;
       if (mounted) {
@@ -122,13 +110,14 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
   @override
   void initState() {
     super.initState();
+    _audioRecordingUrl = widget.audioRecordingUrl;
+    _startedRecording = widget.startedRecording;
     _name = widget.name;
     _caption = widget.caption;
     _readyForDispatch = widget.readyForDispatch;
-    _audioRecordingUrl = widget.audioRecordingUrl;
     _verses = widget.verses;
-    _textEditingController.text = widget.caption.trim();
-    _isValid = _textEditingController.text.trim().length >= 3;
+    _textEditingController.text = widget.caption;
+    _isValid = _textEditingController.text.length >= 3;
     _textEditingController.addListener(_textListener);
   }
 
@@ -149,7 +138,7 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
               style: GoogleFonts.roboto(),
             ),
             content: Text(
-              'Name must have at least three characters.',
+              'Caption must have at least three characters.',
               style: GoogleFonts.roboto(),
             ),
             actions: [
@@ -218,7 +207,7 @@ class _ShmoozeCaptionerState extends State<ShmoozeCaptioner> {
                 textCapitalization: TextCapitalization.sentences,
                 controller: _textEditingController,
                 decoration: InputDecoration.collapsed(
-                  hintText: 'Name this shmooze...',
+                  hintText: 'Caption this shmooze...',
                   hintStyle: GoogleFonts.roboto(
                       color: CupertinoColors.systemGrey2,
                       fontWeight: FontWeight.w400,

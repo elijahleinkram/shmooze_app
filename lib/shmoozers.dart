@@ -29,16 +29,16 @@ class _ShmoozersState extends State<Shmoozers> {
         .catchError((error) {
       print(error);
     });
-    if (qs != null) {
+    if (qs != null && qs.docs != null) {
       if (Human.uid == null) {
         Human.others = qs.docs;
-        return;
-      }
-      Human.others = [];
-      for (int i = 0; i < qs.docs.length; i++) {
-        final DocumentSnapshot snapshot = qs.docs[i];
-        if (snapshot.id != Human.uid) {
-          Human.others.add(snapshot);
+      } else {
+        Human.others = [];
+        for (int i = 0; i < qs.docs.length; i++) {
+          final DocumentSnapshot snapshot = qs.docs[i];
+          if (snapshot.id != Human.uid) {
+            Human.others.add(snapshot);
+          }
         }
       }
       if (mounted) {
@@ -147,26 +147,17 @@ class _ShmoozersState extends State<Shmoozers> {
         });
   }
 
-  String _getInviteId(String receiverUid) {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(receiverUid)
-        .collection('invites')
-        .doc()
-        .id;
-  }
-
   Future<bool> _canUseMic() async {
     final PermissionStatus status =
         await Permission.microphone.request().catchError((error) {
       print(error);
     });
-    if (status == null || status.isPermanentlyDenied) {
-      if (status.isPermanentlyDenied) {
-        showToastErrorMsg(
-            'Go to settings to give Shmooze access to your microphone.');
-      }
+    if (status == null) {
       return false;
+    }
+    if (status.isPermanentlyDenied) {
+      showToastErrorMsg(
+          'Go to settings to give Shmooze access to your microphone.');
     }
     return status.isGranted;
   }
@@ -251,15 +242,20 @@ class _ShmoozersState extends State<Shmoozers> {
                             if (!mounted) {
                               return;
                             }
+                            final String receiverUid = snapshot.id;
+                            final String photoUrl = snapshot.get('photoUrl');
+                            final String displayName =
+                                snapshot.get('displayName');
                             Navigator.of(context).pushReplacement(
                                 CupertinoPageRoute(
                                     builder: (BuildContext context) {
                               return PingPong(
+                                shmoozeId: null,
+                                inviteId: null,
                                 senderUid: Human.uid,
-                                receiverUid: snapshot.id,
-                                photoUrl: snapshot.get('photoUrl'),
-                                displayName: snapshot.get('displayName'),
-                                inviteId: _getInviteId(snapshot.id),
+                                receiverUid: receiverUid,
+                                photoUrl: photoUrl,
+                                displayName: displayName,
                               );
                             }));
                           }

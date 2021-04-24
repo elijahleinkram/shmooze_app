@@ -94,7 +94,7 @@ class _RecordingPageState extends State<RecordingPage> {
         });
   }
 
-  void _onBack() async {
+  void _discardShmooze() async {
     if (await _areYouSure() ?? false) {
       if (mounted) {
         Navigator.of(context).pop();
@@ -115,10 +115,6 @@ class _RecordingPageState extends State<RecordingPage> {
   @override
   void didUpdateWidget(covariant RecordingPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.showThatWeAreFinished != widget.showThatWeAreFinished &&
-        widget.showThatWeAreFinished) {
-      _timer?.cancel();
-    }
     if (oldWidget.pauseScreen != widget.pauseScreen && widget.pauseScreen) {
       _timer?.cancel();
     }
@@ -194,7 +190,7 @@ class _RecordingPageState extends State<RecordingPage> {
                         children: [
                           FloatingActionButton(
                             heroTag: 'left',
-                            onPressed: _onBack,
+                            onPressed: _discardShmooze,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                             backgroundColor:

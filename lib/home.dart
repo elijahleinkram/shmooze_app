@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shmooze/personify.dart';
 import 'package:shmooze/shmoozers.dart';
@@ -12,9 +11,9 @@ import 'human.dart';
 import 'main_stage.dart';
 
 class Home extends StatefulWidget {
-  final Future<void> Function() prepareForDispatch;
+  final Future<void> Function() uploadShmooze;
 
-  Home({@required this.prepareForDispatch});
+  Home({@required this.uploadShmooze});
 
   @override
   _HomeState createState() => _HomeState();
@@ -29,16 +28,16 @@ class _HomeState extends State<Home> {
         .orderBy('displayName', descending: false)
         .snapshots();
     _userSubscription = stream.listen((QuerySnapshot qs) {
-      if (qs != null && qs.docs.isNotEmpty) {
+      if (qs != null && qs.docs != null) {
         if (Human.uid == null) {
           Human.others = qs.docs;
-          return;
-        }
-        Human.others = [];
-        for (int i = 0; i < qs.docs.length; i++) {
-          final DocumentSnapshot snapshot = qs.docs[i];
-          if (snapshot.id != Human.uid) {
-            Human.others.add(snapshot);
+        } else {
+          Human.others = [];
+          for (int i = 0; i < qs.docs.length; i++) {
+            final DocumentSnapshot snapshot = qs.docs[i];
+            if (snapshot.id != Human.uid) {
+              Human.others.add(snapshot);
+            }
           }
         }
       }
@@ -80,13 +79,7 @@ class _HomeState extends State<Home> {
                       backButtonIcon: Icons.clear,
                     );
                   }))
-              .then((_) {
-            SchedulerBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() {});
-              }
-            });
-          }).catchError((error) {
+              .catchError((error) {
             print(error);
           });
         },
@@ -123,7 +116,6 @@ class _HomeState extends State<Home> {
   @override
   void initState() {
     super.initState();
-    Human.isShmoozing = false;
     Human.accountExists = false;
     Human.others = [];
     final User user = FirebaseAuth.instance.currentUser;
@@ -138,9 +130,6 @@ class _HomeState extends State<Home> {
       });
     } else {
       Human.uid = user.uid;
-      if (mounted) {
-        setState(() {});
-      }
       Human.accountExists =
           user.displayName != null && user.displayName.isNotEmpty;
       if (Human.accountExists) {
@@ -159,21 +148,23 @@ class _HomeState extends State<Home> {
       },
       child: Material(
         color: Colors.white,
-        child: Column(
-          children: [
-            !_hasSignedIn() ? Container() : Window(),
-            Expanded(
-                child: SafeArea(
-              child: Scaffold(
-                  floatingActionButtonLocation:
-                      _getFloatingActionButtonLocation(),
-                  floatingActionButton: _getFloatingActionButton(),
-                  backgroundColor: Colors.transparent,
-                  body: MainStage(
-                    prepareForDispatch: widget.prepareForDispatch,
-                  )),
-            )),
-          ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              !_hasSignedIn() ? Container() : Window(),
+              Expanded(
+                  child: Scaffold(
+                resizeToAvoidBottomInset: false,
+                floatingActionButtonLocation:
+                    _getFloatingActionButtonLocation(),
+                floatingActionButton: _getFloatingActionButton(),
+                backgroundColor: Colors.transparent,
+                body: MainStage(
+                  uploadShmooze: widget.uploadShmooze,
+                ),
+              )),
+            ],
+          ),
         ),
       ),
     );

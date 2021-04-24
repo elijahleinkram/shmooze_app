@@ -6,8 +6,6 @@ class Human {
   static String uid;
   static String photoUrl;
   static List<DocumentSnapshot> others;
-  static bool isShmoozing;
   static bool accountExists;
   static User currentUser;
 }
-

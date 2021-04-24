@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:ntp/ntp.dart';
 import 'package:shmooze/constants.dart';
 import 'package:shmooze/human.dart';
 import 'incoming.dart';
@@ -19,18 +18,26 @@ class _WindowState extends State<Window> {
   double _containerHeight;
   final Map<String, dynamic> _incomingShmooze = {};
 
-  bool _isShowingNotification() {
+  bool _isShowingNotification([String inviteId]) {
     return _containerMaxHeight == _containerHeight &&
-        _incomingShmooze.isNotEmpty;
+        _incomingShmooze.isNotEmpty &&
+        (inviteId ?? _incomingShmooze['inviteId']) ==
+            _incomingShmooze['inviteId'];
   }
 
-  void _showIncomingShmooze(String inviteId, String senderUid, String photoUrl,
-      String displayName, int expiresIn) {
+  void _showIncomingShmooze(
+      String inviteId,
+      String senderUid,
+      String senderPhotoUrl,
+      String senderDisplayName,
+      int expiresIn,
+      String shmoozeId) {
     _incomingShmooze['inviteId'] = inviteId;
     _incomingShmooze['senderUid'] = senderUid;
-    _incomingShmooze['photoUrl'] = photoUrl;
-    _incomingShmooze['displayName'] = displayName;
+    _incomingShmooze['senderPhotoUrl'] = senderPhotoUrl;
+    _incomingShmooze['senderDisplayName'] = senderDisplayName;
     _incomingShmooze['expiresIn'] = expiresIn;
+    _incomingShmooze['shmoozeId'] = shmoozeId;
     _containerHeight = _containerMaxHeight;
     if (mounted) {
       setState(() {});
@@ -43,36 +50,33 @@ class _WindowState extends State<Window> {
 
   void _startListeningForNotifications() async {
     final Stream<QuerySnapshot> stream = FirebaseFirestore.instance
-        .collection('users')
-        .doc(Human.uid)
-        .collection('invites')
-        .orderBy('timestamp', descending: true)
-        .where('timestamp',
-            isGreaterThan: (await getCurrentTime()) - kExpirationInMillis)
+        .collection('mailRoom')
+        .where('receiver.uid', isEqualTo: Human.uid)
+        .orderBy('expiresIn', descending: true)
+        .where('expiresIn', isGreaterThan: (await getCurrentTime()))
         .limit(1)
         .snapshots();
     _inviteSubscription = stream.listen((QuerySnapshot qs) async {
-      if (qs != null && qs.docs.isNotEmpty) {
+      if (qs != null && qs.docs != null && qs.docs.isNotEmpty) {
         final DocumentSnapshot snapshot = qs.docs.first;
         final int status = snapshot.get('status');
         if (!_isValid(status)) {
-          if (_isShowingNotification()) {
+          if (_isShowingNotification(snapshot.id)) {
             _hideIncomingShmooze();
           }
         } else {
-          final int expiresIn = kExpirationInMillis -
-              ((await NTP.now()).millisecondsSinceEpoch -
-                  snapshot.get('timestamp'));
-          if (expiresIn >= 10000 / 3) {
-            if (_isShowingNotification()) {
-              return;
+          final int expiresIn =
+              snapshot.get('expiresIn') - (await getCurrentTime());
+          if (expiresIn >= 10000 ~/ 3) {
+            if (!_isShowingNotification(snapshot.id)) {
+              _showIncomingShmooze(
+                  snapshot.id,
+                  snapshot.get('sender.uid'),
+                  snapshot.get('sender.photoUrl'),
+                  snapshot.get('sender.displayName'),
+                  expiresIn,
+                  snapshot.get('shmoozeId'));
             }
-            _showIncomingShmooze(
-                snapshot.id,
-                snapshot.get('senderUid'),
-                snapshot.get('photoUrl'),
-                snapshot.get('displayName'),
-                expiresIn);
           }
         }
       }
@@ -116,10 +120,11 @@ class _WindowState extends State<Window> {
             : OverflowBox(
                 maxHeight: _containerMaxHeight,
                 child: Incoming(
+                    shmoozeId: _incomingShmooze['shmoozeId'],
                     inviteId: _incomingShmooze['inviteId'],
                     expiresIn: _incomingShmooze['expiresIn'],
-                    displayName: _incomingShmooze['displayName'],
-                    photoUrl: _incomingShmooze['photoUrl'],
+                    senderDisplayName: _incomingShmooze['senderDisplayName'],
+                    senderPhotoUrl: _incomingShmooze['senderPhotoUrl'],
                     hideIncomingShmooze: _hideIncomingShmooze,
                     senderUid: _incomingShmooze['senderUid']),
               ));

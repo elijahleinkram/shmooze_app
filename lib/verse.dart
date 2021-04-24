@@ -11,33 +11,29 @@ class Verse extends StatefulWidget {
   final dynamic quote;
   final bool isPlaying;
   final dynamic opensMouth;
-  final dynamic startedRecording;
   final int index;
   final int length;
   final dynamic photoUrl;
   final AudioPlayer audioPlayer;
   final ValueKey<dynamic> key;
   final Function(int index) updateLineNumber;
-  final bool isPreview;
   final Function(double volume) changeVolumeTo;
-  final double currentVolume;
   final bool isMuted;
+  final dynamic startedRecording;
 
   Verse({
     @required this.updateLineNumber,
+    @required this.startedRecording,
     @required this.changeVolumeTo,
-    @required this.currentVolume,
     @required this.isMuted,
     @required this.photoUrl,
     @required this.displayName,
     @required this.quote,
     @required this.isPlaying,
-    @required this.startedRecording,
     @required this.opensMouth,
     @required this.audioPlayer,
     @required this.index,
     @required this.length,
-    @required this.isPreview,
     @required this.key,
   }) : super(key: key);
 
@@ -50,10 +46,8 @@ class _VerseState extends State<Verse> {
   Widget _bottomWidget;
 
   String _getTime() {
-    final int millisecondsSinceEpoch =
-        widget.startedRecording.toInt() + (widget.opensMouth * 1000).toInt();
     final DateTime dateTime =
-        DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch);
+        DateTime.fromMillisecondsSinceEpoch(widget.opensMouth);
     int hours = dateTime.hour;
     bool isPm = false;
     if (hours >= 12) {
@@ -73,14 +67,14 @@ class _VerseState extends State<Verse> {
     if (widget.isPlaying) {
       if (widget.isMuted) {
         return Icon(
-          Ionicons.ios_volume_mute,
-          size: 17.5 * 0.75,
+          FontAwesome5Solid.volume_mute,
+          size: 17.5 * 2 / 3,
           color: CupertinoColors.activeBlue,
         );
       } else {
         return Icon(
-          Ionicons.ios_volume_high,
-          size: 17.5 * 0.75,
+          FontAwesome5Solid.volume_up,
+          size: 17.5 * 2 / 3,
           color: CupertinoColors.activeBlue,
         );
       }
@@ -183,13 +177,9 @@ class _VerseState extends State<Verse> {
                       ),
                       Stack(
                         children: [
-                          Icon(Ionicons.ios_volume_high,
-                              size: 17.5, color: Colors.transparent),
-                          AnimatedSwitcher(
-                            duration:
-                                Duration(milliseconds: 1000 ~/ (10 * 2 / 3)),
-                            child: _trailingIcon(),
-                          )
+                          Icon(FontAwesome5Solid.volume_up,
+                              size: 17.5 * 2 / 3, color: Colors.transparent),
+                          _trailingIcon(),
                         ],
                       )
                     ],
@@ -201,17 +191,33 @@ class _VerseState extends State<Verse> {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {
+                  onTap: () async {
                     if (widget.isMuted) {
                       widget.changeVolumeTo(1.0);
+                      widget.audioPlayer
+                          .seek(Duration(
+                              milliseconds: (widget.opensMouth -
+                                  widget.startedRecording)))
+                          .catchError((error) {
+                        print(error);
+                      });
                     } else {
                       if (widget.isPlaying) {
                         widget.changeVolumeTo(0.0);
+                      } else {
+                        widget.changeVolumeTo(1.0);
+                        widget.audioPlayer
+                            .seek(Duration(
+                                milliseconds: (widget.opensMouth -
+                                    widget.startedRecording)))
+                            .catchError((error) {
+                          print(error);
+                        });
                       }
                     }
-                    widget.audioPlayer.seek(Duration(
-                        milliseconds: (widget.opensMouth * 1000).toInt()));
-                    widget.updateLineNumber(widget.index);
+                    if (!widget.isPlaying) {
+                      widget.updateLineNumber(widget.index);
+                    }
                   },
                 ),
               ),
