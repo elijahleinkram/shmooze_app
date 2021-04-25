@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shmooze/recording_page.dart';
 import 'package:shmooze/shmooze_namer.dart';
 import 'package:shmooze/waiting_page.dart';
+import 'package:wakelock/wakelock.dart';
 import 'constants.dart';
 import 'human.dart';
 
@@ -623,6 +624,9 @@ class _PingPongState extends State<PingPong> {
   @override
   void dispose() {
     super.dispose();
+    Wakelock.disable().catchError((error) {
+      print(error);
+    });
     _timer?.cancel();
     _destroyEngineAndStream();
     _audioPlayer.dispose().catchError((error) {
@@ -738,6 +742,10 @@ class _PingPongState extends State<PingPong> {
   void initState() {
     super.initState();
     _getAgoraApi();
+    Wakelock.enable().catchError((error) {
+      print(error);
+    });
+
     _shmoozeSnapshot = {
       'sender': {
         'uid': Human.uid,
