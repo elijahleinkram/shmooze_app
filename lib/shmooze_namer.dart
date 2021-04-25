@@ -101,7 +101,9 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         return;
       }
       _isTryingToLeavePage = true;
-
+      if (mounted) {
+        setState(() {});
+      }
       _processingTimer = Timer(
           Duration(
             milliseconds: 18000,
@@ -109,8 +111,12 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         if (_isTryingToLeavePage) {
           _isTryingToLeavePage = false;
           this._overlayEntry.remove();
+          if (!mounted) {
+            return;
+          }
           _showErrorMsg(
               'Something unexpected happened, please try again later.');
+          setState(() {});
         }
       });
       this._overlayEntry = OverlayEntry(builder: (BuildContext context) {
@@ -174,6 +180,7 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
       if (!mounted) {
         return;
       }
+      setState(() {});
       _navigateToPreviewPage();
     }
   }
@@ -288,7 +295,7 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
                   color: CupertinoColors.black,
                 ),
                 onPressed:
-                    !_isTryingToLeavePage ? Navigator.of(context).pop : null,
+                    _isTryingToLeavePage ? null : Navigator.of(context).pop,
               ),
             ),
             body: Padding(
@@ -302,7 +309,7 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
                           (1 + 1 / 3)),
                   TextField(
                     focusNode: _focusNode,
-                    autofocus: !_isTryingToLeavePage ? true : false,
+                    autofocus: true,
                     maxLines: null,
                     onChanged: _textListener,
                     cursorColor: CupertinoColors.activeBlue,

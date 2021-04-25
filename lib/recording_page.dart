@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shmooze/constants.dart';
+import 'package:wakelock/wakelock.dart';
 
 class RecordingPage extends StatefulWidget {
   final String displayName;
@@ -105,6 +106,9 @@ class _RecordingPageState extends State<RecordingPage> {
   @override
   void initState() {
     super.initState();
+    Wakelock.enable().catchError((error) {
+      print(error);
+    });
     _timer = Timer.periodic(Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {});
@@ -124,6 +128,9 @@ class _RecordingPageState extends State<RecordingPage> {
   void dispose() {
     super.dispose();
     _timer?.cancel();
+    Wakelock.disable().catchError((error) {
+      print(error);
+    });
   }
 
   @override

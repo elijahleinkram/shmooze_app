@@ -3,7 +3,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shmooze/about.dart';
-import 'package:shmooze/promote.dart';
 import 'package:shmooze/verse.dart';
 
 class Scripture extends StatefulWidget {
@@ -279,13 +278,16 @@ class _ScriptureState extends State<Scripture>
         ),
         SliverList(
           delegate: SliverChildListDelegate([
-            Promote(
-              personA: widget.personA,
-              personB: widget.personB,
-              heroTag: 'share ' + widget.key.value,
-              shmoozeId: widget.shmoozeId,
-              isPreview: widget.isPreview,
+            SizedBox(
+              height: 100 / 3,
             )
+            // Promote(
+            //   personA: widget.personA,
+            //   personB: widget.personB,
+            //   heroTag: 'share ' + widget.key.value,
+            //   shmoozeId: widget.shmoozeId,
+            //   isPreview: widget.isPreview,
+            // )
           ]),
         ),
       ],
