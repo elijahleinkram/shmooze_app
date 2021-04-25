@@ -76,9 +76,7 @@ class _ShmoozersState extends State<Shmoozers> {
                 color: Colors.white,
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-            ),
+            SizedBox(width: 17.5 * 0.5),
             ClipRect(
               child: Align(
                 heightFactor: 0.5,
@@ -89,7 +87,7 @@ class _ShmoozersState extends State<Shmoozers> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.newsCycle(
                         color: CupertinoColors.black,
-                        fontSize: 15.0,
+                        fontSize: 17.5,
                         fontWeight: FontWeight.w300,
                       ),
                     ),
@@ -292,9 +290,7 @@ class _ShmoozersState extends State<Shmoozers> {
                               ],
                             ),
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                          ),
+                          SizedBox(width: 17.5 * 0.5),
                           Expanded(
                             child: Text(
                               snapshot.get('displayName'),
@@ -315,5 +311,3 @@ class _ShmoozersState extends State<Shmoozers> {
     );
   }
 }
-
-
