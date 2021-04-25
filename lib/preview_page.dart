@@ -211,6 +211,9 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
             ],
           )),
       body: Scripture(
+        personA: widget.senderDisplayName,
+        personB: widget.receiverDisplayName,
+        shmoozeId: widget.shmoozeId,
         playFrom: widget.playFrom,
         playUntil: widget.playUntil,
         startedRecording: widget.startedRecording,
@@ -235,4 +238,3 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     );
   }
 }
-

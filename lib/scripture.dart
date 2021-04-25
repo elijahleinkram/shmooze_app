@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shmooze/about.dart';
+import 'package:shmooze/promote.dart';
 import 'package:shmooze/verse.dart';
 
 class Scripture extends StatefulWidget {
@@ -19,10 +20,16 @@ class Scripture extends StatefulWidget {
   final dynamic startedRecording;
   final dynamic playFrom;
   final dynamic playUntil;
+  final String shmoozeId;
+  final dynamic personA;
+  final dynamic personB;
 
   Scripture(
       {@required this.startedRecording,
       @required this.playFrom,
+      @required this.personA,
+      @required this.personB,
+      @required this.shmoozeId,
       @required this.playUntil,
       @required this.getCurrentPage,
       @required this.verses,
@@ -263,13 +270,23 @@ class _ScriptureState extends State<Scripture>
               index: index,
               photoUrl: photoUrl,
               audioPlayer: widget.audioPlayer,
-              length: widget.verses.length,
               opensMouth: opensMouth,
               isPlaying: _isUpToHere(index),
               displayName: displayName,
               quote: quote,
             );
           }, childCount: widget.verses.length),
+        ),
+        SliverList(
+          delegate: SliverChildListDelegate([
+            Promote(
+              personA: widget.personA,
+              personB: widget.personB,
+              heroTag: 'share ' + widget.key.value,
+              shmoozeId: widget.shmoozeId,
+              isPreview: widget.isPreview,
+            )
+          ]),
         ),
       ],
     );

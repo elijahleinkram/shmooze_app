@@ -71,8 +71,8 @@ class _ShmoozersState extends State<Shmoozers> {
           children: <Widget>[
             ClipOval(
               child: Container(
-                width: 36.0,
-                height: 36.0,
+                width: 40.0,
+                height: 40.0,
                 color: Colors.white,
               ),
             ),
@@ -89,7 +89,7 @@ class _ShmoozersState extends State<Shmoozers> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.newsCycle(
                         color: CupertinoColors.black,
-                        fontSize: 17.5,
+                        fontSize: 15.0,
                         fontWeight: FontWeight.w300,
                       ),
                     ),
@@ -116,7 +116,7 @@ class _ShmoozersState extends State<Shmoozers> {
             content: Text(
                 'Are you sure you want to shmooze with ${snapshot.get('displayName')}?',
                 style: GoogleFonts.roboto(
-                  fontSize: 14.0,
+                  fontSize: 15.0,
                   color: CupertinoColors.black,
                 )),
             actions: [
@@ -263,19 +263,17 @@ class _ShmoozersState extends State<Shmoozers> {
                       },
                       child: Row(
                         children: [
-                          Material(
-                            elevation: 1.5,
-                            shape: CircleBorder(),
-                            child: ClipOval(
-                              child: Stack(
-                                children: [
-                                  Material(
-                                    color: Colors.white,
-                                    child: Container(
-                                      width: 36.0,
-                                      height: 36.0,
-                                      color:
-                                          Color(kNorthStar).withOpacity(1 / 3),
+                          ClipOval(
+                            child: Stack(
+                              children: [
+                                Material(
+                                  color: Colors.white,
+                                  child: Container(
+                                    width: 40.0,
+                                    height: 40.0,
+                                    color: Color(kNorthStar).withOpacity(1 / 3),
+                                    child: Align(
+                                      alignment: Alignment.center,
                                       child: Icon(
                                         Icons.person,
                                         color: CupertinoColors.systemGrey2,
@@ -283,15 +281,15 @@ class _ShmoozersState extends State<Shmoozers> {
                                       ),
                                     ),
                                   ),
-                                  snapshot.get('photoUrl') == null
-                                      ? Container()
-                                      : Positioned.fill(
-                                          child: CachedNetworkImage(
-                                          imageUrl: snapshot.get('photoUrl'),
-                                          fit: BoxFit.cover,
-                                        )),
-                                ],
-                              ),
+                                ),
+                                snapshot.get('photoUrl') == null
+                                    ? Container()
+                                    : Positioned.fill(
+                                        child: CachedNetworkImage(
+                                        imageUrl: snapshot.get('photoUrl'),
+                                        fit: BoxFit.cover,
+                                      )),
+                              ],
                             ),
                           ),
                           const Padding(
@@ -304,7 +302,7 @@ class _ShmoozersState extends State<Shmoozers> {
                               style: GoogleFonts.roboto(
                                 color: CupertinoColors.black,
                                 fontWeight: FontWeight.w400,
-                                fontSize: 13 + 1 / 3,
+                                fontSize: 15.0,
                               ),
                             ),
                           ),
@@ -317,3 +315,5 @@ class _ShmoozersState extends State<Shmoozers> {
     );
   }
 }
+
+

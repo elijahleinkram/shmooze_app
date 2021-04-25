@@ -279,7 +279,7 @@ class _PingPongState extends State<PingPong> {
             content: Text(
               caption,
               style: GoogleFonts.roboto(
-                fontSize: 14.0,
+                fontSize: 15.0,
                 color: CupertinoColors.black,
               ),
             ),
@@ -315,7 +315,7 @@ class _PingPongState extends State<PingPong> {
             content: Text(
               msg,
               style: GoogleFonts.roboto(
-                fontSize: 14.0,
+                fontSize: 15.0,
                 color: CupertinoColors.black,
               ),
             ),
@@ -351,7 +351,7 @@ class _PingPongState extends State<PingPong> {
             content: Text(
               'Are you sure you want to leave the shmooze?',
               style: GoogleFonts.roboto(
-                fontSize: 14.0,
+                fontSize: 15.0,
                 color: CupertinoColors.black,
               ),
             ),
@@ -862,3 +862,4 @@ class _PingPongState extends State<PingPong> {
     );
   }
 }
+

@@ -136,7 +136,7 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
             content: Text(
               caption,
               style: GoogleFonts.roboto(
-                fontSize: 14.0,
+                fontSize: 15.0,
                 color: CupertinoColors.black,
               ),
             ),

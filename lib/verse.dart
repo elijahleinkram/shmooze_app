@@ -12,7 +12,6 @@ class Verse extends StatefulWidget {
   final bool isPlaying;
   final dynamic opensMouth;
   final int index;
-  final int length;
   final dynamic photoUrl;
   final AudioPlayer audioPlayer;
   final ValueKey<dynamic> key;
@@ -33,7 +32,6 @@ class Verse extends StatefulWidget {
     @required this.opensMouth,
     @required this.audioPlayer,
     @required this.index,
-    @required this.length,
     @required this.key,
   }) : super(key: key);
 
@@ -43,7 +41,6 @@ class Verse extends StatefulWidget {
 
 class _VerseState extends State<Verse> {
   String _time;
-  Widget _bottomWidget;
 
   String _getTime() {
     final DateTime dateTime =
@@ -68,13 +65,13 @@ class _VerseState extends State<Verse> {
       if (widget.isMuted) {
         return Icon(
           FontAwesome5Solid.volume_mute,
-          size: 17.5 * 2 / 3,
+          size: 12.5,
           color: CupertinoColors.activeBlue,
         );
       } else {
         return Icon(
           FontAwesome5Solid.volume_up,
-          size: 17.5 * 2 / 3,
+          size: 12.5,
           color: CupertinoColors.activeBlue,
         );
       }
@@ -86,18 +83,12 @@ class _VerseState extends State<Verse> {
   void initState() {
     super.initState();
     _time = _getTime();
-    final bool isAtTheEnd = widget.index == widget.length - 1;
     _faceWidget = widget.photoUrl == null
         ? Container()
         : CachedNetworkImage(
             imageUrl: widget.photoUrl,
             fit: BoxFit.cover,
           );
-    _bottomWidget = isAtTheEnd
-        ? SizedBox(
-            height: 100 / 3,
-          )
-        : Container();
   }
 
   @override
@@ -117,48 +108,44 @@ class _VerseState extends State<Verse> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Material(
-                        shape: CircleBorder(),
-                        elevation: 1.5,
-                        child: ClipOval(
-                          child: Stack(
-                            children: [
-                              Container(
-                                width: 100 / 4,
-                                height: 100 / 4,
-                                color: Color(kNorthStar).withOpacity(1 / 3),
-                                child: Align(
-                                  alignment: Alignment.center,
-                                  child: Icon(
-                                    Icons.person,
-                                    color: CupertinoColors.systemGrey2,
-                                    size: 20.0 * ((100 / 4) / 48),
-                                  ),
+                      ClipOval(
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              color: Color(kNorthStar).withOpacity(1 / 3),
+                              child: Align(
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  Icons.person,
+                                  color: CupertinoColors.systemGrey2,
+                                  size: 15.0,
                                 ),
                               ),
-                              Positioned.fill(
-                                child: _faceWidget,
-                              ),
-                            ],
-                          ),
+                            ),
+                            Positioned.fill(
+                              child: _faceWidget,
+                            ),
+                          ],
                         ),
                       ),
                       SizedBox(width: 17.5 * 0.5),
                       Text(widget.displayName,
                           style: GoogleFonts.roboto(
-                            fontSize: 17.5 * 3 / 4,
-                            color: CupertinoColors.black,
+                            fontSize: 15.0,
+                            color: Colors.black87,
                             fontWeight: FontWeight.w500,
                           )),
                     ],
                   ),
-                  SizedBox(height: 17.5 * 0.5),
+                  SizedBox(height: 17.5 * 0.25),
                   Text(
                     widget.quote,
                     textAlign: TextAlign.left,
                     style: GoogleFonts.newsCycle(
                       color: CupertinoColors.black,
-                      fontSize: 17.5,
+                      fontSize: 20.0,
                       fontWeight: FontWeight.w300,
                     ),
                   ),
@@ -170,15 +157,15 @@ class _VerseState extends State<Verse> {
                       Text(
                         _time,
                         style: GoogleFonts.newsCycle(
-                          fontSize: 17.5 * 2 / 3,
+                          fontSize: 10.0,
                           color: CupertinoColors.black,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Stack(
                         children: [
                           Icon(FontAwesome5Solid.volume_up,
-                              size: 17.5 * 2 / 3, color: Colors.transparent),
+                              size: 12.5, color: Colors.transparent),
                           _trailingIcon(),
                         ],
                       )
@@ -224,7 +211,6 @@ class _VerseState extends State<Verse> {
             )
           ],
         ),
-        _bottomWidget,
       ],
     );
   }

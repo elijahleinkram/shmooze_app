@@ -452,6 +452,9 @@ class _MainStageState extends State<MainStage>
           final AudioPlayer audioPlayer = _audioPlayers[index];
           final ValueKey<dynamic> key = _keys[index];
           return Scripture(
+            personA: shmooze['personA'],
+            personB: shmooze['personB'],
+            shmoozeId: shmooze['shmoozeId'],
             startedRecording: startedRecording,
             playFrom: playFrom,
             playUntil: playUntil,
