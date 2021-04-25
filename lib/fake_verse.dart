@@ -48,8 +48,8 @@ class _FakeVerseState extends State<FakeVerse> {
                   children: [
                     ClipOval(
                       child: Container(
-                        width: 100 / 4,
-                        height: 100 / 4,
+                        width: 40.0,
+                        height: 40.0,
                         color: Colors.white,
                       ),
                     ),
@@ -90,7 +90,7 @@ class _FakeVerseState extends State<FakeVerse> {
                             maxLines: 1,
                             style: GoogleFonts.newsCycle(
                               color: CupertinoColors.black,
-                              fontSize: 17.5,
+                              fontSize: 20.0,
                               fontWeight: FontWeight.w300,
                             ),
                           ),
@@ -114,7 +114,7 @@ class _FakeVerseState extends State<FakeVerse> {
                           maxLines: 1,
                           style: GoogleFonts.newsCycle(
                             color: CupertinoColors.black,
-                            fontSize: 17.5,
+                            fontSize: 20.0,
                             fontWeight: FontWeight.w300,
                           ),
                         ),
