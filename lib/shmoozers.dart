@@ -209,7 +209,8 @@ class _ShmoozersState extends State<Shmoozers> {
                 ],
               )),
           body: ListView.separated(
-              physics: BouncingScrollPhysics(),
+              physics: ClampingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics()),
               separatorBuilder: (BuildContext context, int index) {
                 return SizedBox(height: 20.0);
               },

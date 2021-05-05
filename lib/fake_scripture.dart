@@ -5,9 +5,7 @@ class FakeScripture extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
-      physics: BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
+      physics: ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         SliverList(
           delegate:

@@ -46,14 +46,6 @@ class _FakeVerseState extends State<FakeVerse> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    ClipOval(
-                      child: Container(
-                        width: 40.0,
-                        height: 40.0,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(width: 17.5 * 0.5),
                     ClipRect(
                       child: Align(
                         heightFactor: 0.5,

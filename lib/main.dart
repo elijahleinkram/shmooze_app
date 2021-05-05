@@ -16,8 +16,14 @@ void main() {
           FirebaseAnalyticsObserver(analytics: analytics),
         ],
         title: 'Shmooze',
-        home: Home(
-          uploadShmooze: null,
+        home: NotificationListener(
+          onNotification: (OverscrollIndicatorNotification overScroll) {
+            overScroll.disallowGlow();
+            return false;
+          },
+          child: Home(
+            uploadShmooze: null,
+          ),
         ),
         debugShowCheckedModeBanner: false,
       )));

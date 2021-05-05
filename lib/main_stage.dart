@@ -31,7 +31,7 @@ class _MainStageState extends State<MainStage>
   bool _isLoadingShmooze;
   final List<ValueKey<dynamic>> _keys = [];
   bool _isRefreshing;
-  int _pageLimit = 5;
+  int _pageLimit = 3;
   final Set<String> _hasPlayed = {};
   String _refreshToken;
   final PreloadPageController _pageController = PreloadPageController();
@@ -189,7 +189,7 @@ class _MainStageState extends State<MainStage>
   }
 
   bool _isCloseToTheEnd() {
-    return _pageController.page >= _shmoozes.length - 5;
+    return _pageController.page >= _shmoozes.length - 3;
   }
 
   bool _noMoreShmoozes() {
@@ -274,7 +274,7 @@ class _MainStageState extends State<MainStage>
   }
 
   void _loadMoreShmoozes() async {
-    if (_isLoadingShmooze || _noMoreShmoozes()) {
+    if (_isLoadingShmooze || _isRefreshing || _noMoreShmoozes()) {
       return;
     }
     if (_isCloseToTheEnd()) {
@@ -289,9 +289,6 @@ class _MainStageState extends State<MainStage>
   }
 
   void _onPageSwipe() {
-    if (_isRefreshing) {
-      return;
-    }
     final int oldPage = _currentPage;
     final int newPage = _getCurrentPage();
     if (_pageHasChanged(oldPage, newPage)) {
@@ -390,7 +387,7 @@ class _MainStageState extends State<MainStage>
     WidgetsBinding.instance.addObserver(this);
     _currentPage = 0;
     _isRefreshing = false;
-    _numberOfShmoozes = 5;
+    _numberOfShmoozes = 3;
     _isLoadingShmooze = false;
     _listenToShmoozeCount();
     _pageController.addListener(_onPageSwipe);
@@ -434,43 +431,47 @@ class _MainStageState extends State<MainStage>
 
   @override
   Widget build(BuildContext context) {
-    return PreloadPageView.builder(
-      itemCount: _itemCount(),
-      physics: BouncingScrollPhysics(),
-      controller: _pageController,
-      itemBuilder: (BuildContext context, int index) {
-        if (_hasPassedLastShmooze(index)) {
-          return FakeScripture();
-        } else {
-          final dynamic shmooze = _shmoozes[index];
-          final dynamic name = shmooze['name'];
-          final dynamic caption = shmooze['caption'];
-          final dynamic startedRecording = shmooze['startedRecording'];
-          final dynamic playFrom = shmooze['play']['from'];
-          final dynamic playUntil = shmooze['play']['until'];
-          final dynamic verses = _scripts[index];
-          final AudioPlayer audioPlayer = _audioPlayers[index];
-          final ValueKey<dynamic> key = _keys[index];
-          return Scripture(
-            personA: shmooze['personA'],
-            personB: shmooze['personB'],
-            shmoozeId: shmooze['shmoozeId'],
-            startedRecording: startedRecording,
-            playFrom: playFrom,
-            playUntil: playUntil,
-            getCurrentPage: _getCurrentPage,
-            name: name,
-            caption: caption,
-            index: index,
-            refreshToken: _refreshToken,
-            onRefresh: _onRefresh,
-            key: key,
-            verses: verses,
-            audioPlayer: audioPlayer,
-            isPreview: false,
-          );
-        }
-      },
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.transparent,
+      body: PreloadPageView.builder(
+        itemCount: _itemCount(),
+        physics: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        controller: _pageController,
+        itemBuilder: (BuildContext context, int index) {
+          if (_hasPassedLastShmooze(index)) {
+            return FakeScripture();
+          } else {
+            final dynamic shmooze = _shmoozes[index];
+            final dynamic name = shmooze['name'];
+            final dynamic caption = shmooze['caption'];
+            final dynamic startedRecording = shmooze['startedRecording'];
+            final dynamic playFrom = shmooze['play']['from'];
+            final dynamic playUntil = shmooze['play']['until'];
+            final dynamic verses = _scripts[index];
+            final AudioPlayer audioPlayer = _audioPlayers[index];
+            final ValueKey<dynamic> key = _keys[index];
+            return Scripture(
+              personA: shmooze['personA'],
+              personB: shmooze['personB'],
+              shmoozeId: shmooze['shmoozeId'],
+              startedRecording: startedRecording,
+              playFrom: playFrom,
+              playUntil: playUntil,
+              getCurrentPage: _getCurrentPage,
+              name: name,
+              caption: caption,
+              index: index,
+              refreshToken: _refreshToken,
+              onRefresh: _onRefresh,
+              key: key,
+              verses: verses,
+              audioPlayer: audioPlayer,
+              isPreview: false,
+            );
+          }
+        },
+      ),
     );
   }
 }

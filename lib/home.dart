@@ -3,9 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:shmooze/personify.dart';
-import 'package:shmooze/shmoozers.dart';
 import 'window.dart';
 import 'human.dart';
 import 'main_stage.dart';
@@ -56,63 +53,6 @@ class _HomeState extends State<Home> {
     return Human.uid != null;
   }
 
-  FloatingActionButtonLocation _getFloatingActionButtonLocation() {
-    if (Human.accountExists) {
-      return FloatingActionButtonLocation.endFloat;
-    } else {
-      return FloatingActionButtonLocation.centerFloat;
-    }
-  }
-
-  Widget _getFloatingActionButton() {
-    if (Human.accountExists) {
-      return FloatingActionButton(
-        heroTag: 'make',
-        child: Icon(Icons.add, color: Colors.white),
-        backgroundColor: CupertinoColors.activeBlue,
-        onPressed: () {
-          Navigator.of(context)
-              .push(CupertinoPageRoute(
-                  fullscreenDialog: true,
-                  builder: (BuildContext context) {
-                    return Shmoozers(
-                      backButtonIcon: Icons.clear,
-                    );
-                  }))
-              .catchError((error) {
-            print(error);
-          });
-        },
-      );
-    } else {
-      return ElevatedButton(
-        style: TextButton.styleFrom(
-            shape: StadiumBorder(),
-            backgroundColor: CupertinoColors.activeBlue,
-            padding: EdgeInsets.symmetric(horizontal: 18.0, vertical: 11.0)),
-        onPressed: () {
-          Navigator.of(context)
-              .push(CupertinoPageRoute(builder: (BuildContext context) {
-            return Personify(
-              updateMainStage: () {
-                if (mounted) {
-                  setState(() {});
-                }
-              },
-            );
-          }));
-        },
-        child: Text(
-          'Create account to start shmoozing',
-          style: GoogleFonts.roboto(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      );
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -153,15 +93,8 @@ class _HomeState extends State<Home> {
             children: [
               !_hasSignedIn() ? Container() : Window(),
               Expanded(
-                  child: Scaffold(
-                resizeToAvoidBottomInset: false,
-                floatingActionButtonLocation:
-                    _getFloatingActionButtonLocation(),
-                floatingActionButton: _getFloatingActionButton(),
-                backgroundColor: Colors.transparent,
-                body: MainStage(
-                  uploadShmooze: widget.uploadShmooze,
-                ),
+                  child: MainStage(
+                uploadShmooze: widget.uploadShmooze,
               )),
             ],
           ),

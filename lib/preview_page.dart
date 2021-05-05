@@ -148,9 +148,6 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         .catchError((error) {
       print(error);
     });
-    widget.audioPlayer.setVolume(1.0).catchError((error) {
-      print(error);
-    });
   }
 
   @override

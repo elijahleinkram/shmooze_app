@@ -148,8 +148,8 @@ class _PersonifyState extends State<Personify> {
     }
   }
 
-  void _deleteOrCapture() async {
-    if (_hasImage()) {
+  void _deleteOrCapture(bool onlyCapture) async {
+    if (_hasImage() && !onlyCapture) {
       _imageFile = null;
     } else {
       _imageFile = await _getImage() ?? _imageFile;
@@ -202,62 +202,91 @@ class _PersonifyState extends State<Personify> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: MediaQuery.of(context).size.height * 0.025),
-              Center(
-                child: Stack(
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.of(context).size.width / (3 - 1 / 3),
-                      width: MediaQuery.of(context).size.width / (3 - 1 / 3),
-                      child: ClipOval(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                                child: Material(
-                              color: Color(kNorthStar).withOpacity(1 / 3),
-                              child: Center(
-                                child: Icon(
-                                  Icons.person,
-                                  color: CupertinoColors.systemGrey2,
-                                  size: MediaQuery.of(context).size.width / 10,
-                                ),
-                              ),
-                            )),
-                            !_hasImage()
-                                ? Container()
-                                : Positioned.fill(
-                                    child: Image.file(
-                                      _imageFile,
-                                      fit: BoxFit.cover,
+              Align(
+                  alignment: Alignment.center,
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () =>
+                            !_hasImage() ? _deleteOrCapture(false) : null,
+                        child: SizedBox(
+                          height:
+                              MediaQuery.of(context).size.width / (3 - 1 / 3),
+                          width:
+                              MediaQuery.of(context).size.width / (3 - 1 / 3),
+                          child: ClipOval(
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                    child: Material(
+                                  color: Color(kNorthStar).withOpacity(1 / 3),
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.person,
+                                      color: CupertinoColors.systemGrey2,
+                                      size: MediaQuery.of(context).size.width /
+                                          10,
                                     ),
                                   ),
-                          ],
+                                )),
+                                !_hasImage()
+                                    ? Container()
+                                    : Positioned.fill(
+                                        child: Image.file(
+                                          _imageFile,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
+                      Positioned.fill(
+                        child: Align(
+                            alignment: Alignment.bottomRight,
+                            child: FloatingActionButton(
+                              heroTag: 'image_upload',
+                              backgroundColor: CupertinoColors.activeBlue,
+                              child: Icon(
+                                !_hasImage()
+                                    ? Icons.camera_alt_rounded
+                                    : MaterialCommunityIcons.delete,
+                                color: Colors.white,
+                                size: 18.0,
+                              ),
+                              onPressed: () => _deleteOrCapture(false),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              mini: true,
+                              elevation: 1 / 3,
+                            )),
+                      )
+                    ],
+                  )),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.015),
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    shape: StadiumBorder(),
+                    backgroundColor: Colors.transparent,
+                  ),
+                  onPressed: () => _deleteOrCapture(true),
+                  child: Text(
+                    !_hasImage()
+                        ? 'Upload profile photo'
+                        : 'Change profile photo',
+                    style: GoogleFonts.roboto(
+                      color: _hasImage()
+                          ? CupertinoColors.activeBlue
+                          : CupertinoColors.activeBlue,
+                      fontWeight: FontWeight.w500,
                     ),
-                    Positioned.fill(
-                      child: Align(
-                          alignment: Alignment.bottomRight,
-                          child: FloatingActionButton(
-                            heroTag: 'image_upload',
-                            backgroundColor: CupertinoColors.activeBlue,
-                            child: Icon(
-                              !_hasImage()
-                                  ? Icons.camera_alt_rounded
-                                  : MaterialCommunityIcons.delete,
-                              color: Colors.white,
-                              size: 18.0,
-                            ),
-                            onPressed: _deleteOrCapture,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            mini: true,
-                            elevation: 1 / 3,
-                          )),
-                    )
-                  ],
+                  ),
                 ),
               ),
-              SizedBox(height: MediaQuery.of(context).size.height * 0.025 * 2),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.015),
               TextField(
                 focusNode: _focusNode,
                 cursorColor: CupertinoColors.activeBlue,

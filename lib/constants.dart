@@ -4,6 +4,7 @@ import 'package:ntp/ntp.dart';
 const int kNorthStar = 0xFFcad0d2;
 final int kExpirationInMillis = (60 * 3) * 1000;
 final int kNameMaxLength = 24;
+const double kConsoleHeight = 100.0 * 2 / 3;
 
 enum Status {
   waiting,
