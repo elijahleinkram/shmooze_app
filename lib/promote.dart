@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:share/share.dart';
 import 'constants.dart';
 
@@ -62,7 +61,7 @@ class _PromoteState extends State<Promote> {
                 ),
                 label: Text(
                   'Share',
-                  style: GoogleFonts.roboto(
+                  style: TextStyle(fontFamily: 'Roboto',
                     fontSize: 14.0,
                     fontWeight: FontWeight.w400,
                     color: CupertinoColors.black,

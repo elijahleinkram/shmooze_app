@@ -6,8 +6,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shmooze/recording_page.dart';
 import 'package:shmooze/shmooze_namer.dart';
 import 'package:shmooze/waiting_page.dart';
@@ -43,19 +41,13 @@ class _PingPongState extends State<PingPong> {
   RtcEngine _engine;
   final int _extraMillis = (1000 ~/ 3) * 2;
   bool _hasFinished;
-  bool _pauseScreen;
   String _caption;
   String _name;
   String _audioRecordingUrl;
   List<DocumentSnapshot> _verses;
   String _shmoozeId;
-  final AudioPlayer _audioPlayer = AudioPlayer(playerId: 'shmooze_player')
-    ..setReleaseMode(ReleaseMode.LOOP).catchError((error) {
-      print(error);
-    });
   bool _readyForDispatch;
   bool _hasBeenDestroyed;
-  bool _showThatWeAreFinished;
   bool _hasInitializedEngine;
   String _inviteId;
   bool _isReceiver;
@@ -113,7 +105,11 @@ class _PingPongState extends State<PingPong> {
 
   void _initEventHandlers() {
     if (_isSender) {
-      _engine.setEventHandler(RtcEngineEventHandler(userOffline: (_, __) {
+      _engine.setEventHandler(
+          RtcEngineEventHandler(userOffline: (_, UserOfflineReason reason) {
+        if (reason != UserOfflineReason.Quit) {
+          return;
+        }
         _endShmoozeForSender();
       }, tokenPrivilegeWillExpire: (_) {
         _endShmoozeForSender();
@@ -126,12 +122,16 @@ class _PingPongState extends State<PingPong> {
         });
       }));
     } else {
-      _engine.setEventHandler(RtcEngineEventHandler(userOffline: (_, __) {
+      _engine.setEventHandler(
+          RtcEngineEventHandler(userOffline: (_, UserOfflineReason reason) {
+        if (reason != UserOfflineReason.Quit) {
+          return;
+        }
         if (_canGoThroughCheckpoint()) {
           if (_isConnected) {
-            _retreat('Shmooze has finished.');
+            _retreat('The flow is over.');
           } else {
-            _retreat('${widget.displayName} has cancelled the shmooze.');
+            _retreat('${widget.displayName} has left the flow.');
           }
         }
       }, joinChannelSuccess: (_, __, ___) {
@@ -277,20 +277,20 @@ class _PingPongState extends State<PingPong> {
         context: context,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
-            content: Text(
-              caption,
-              style: GoogleFonts.roboto(
-                fontSize: 15.0,
-                color: CupertinoColors.black,
-              ),
-            ),
+            content: Text(caption,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 15.0 + 1 / 3,
+                  color: CupertinoColors.black,
+                )),
             actions: [
               TextButton(
                 child: Text(
                   'Okay',
-                  style: GoogleFonts.roboto(
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
                     color: CupertinoColors.activeBlue,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onPressed: () {
@@ -307,62 +307,57 @@ class _PingPongState extends State<PingPong> {
     });
   }
 
-  Future<bool> _letsProceed(String msg, List<String> actions) {
+  Future<bool> _letsProceed(String msg, String action) {
     return showCupertinoDialog(
         context: context,
         barrierDismissible: true,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
-            content: Text(
-              msg,
-              style: GoogleFonts.roboto(
-                fontSize: 15.0,
-                color: CupertinoColors.black,
-              ),
-            ),
-            actions: actions
-                .map(
-                  (label) => TextButton(
-                    child: Text(
-                      label,
-                      style: GoogleFonts.roboto(
-                        color: label == 'No'
-                            ? CupertinoColors.systemGrey
-                            : CupertinoColors.activeBlue,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context)
-                          .pop(actions.indexOf(label) == actions.length - 1);
-                    },
+            content: Text(msg,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 15.0 + 1 / 3,
+                  color: CupertinoColors.black,
+                )),
+            actions: [
+              TextButton(
+                child: Text(
+                  action,
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: CupertinoColors.activeBlue,
+                    fontWeight: FontWeight.w500,
                   ),
-                )
-                .toList(),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
           );
         });
   }
 
-  Future<bool> _areYouSure() {
+  Future<bool> _areYouSure(String txt) {
     return showCupertinoDialog(
         context: context,
         barrierDismissible: true,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
-            content: Text(
-              'Are you sure you want to leave the shmooze?',
-              style: GoogleFonts.roboto(
-                fontSize: 15.0,
-                color: CupertinoColors.black,
-              ),
-            ),
+            content: Text(txt,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 15.0 + 1 / 3,
+                  color: CupertinoColors.black,
+                )),
             actions: [
               TextButton(
                 child: Text(
                   'No',
-                  style: GoogleFonts.roboto(
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
                     color: CupertinoColors.systemGrey,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onPressed: () {
@@ -372,9 +367,10 @@ class _PingPongState extends State<PingPong> {
               TextButton(
                 child: Text(
                   'Yes',
-                  style: GoogleFonts.roboto(
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
                     color: CupertinoColors.activeBlue,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onPressed: () {
@@ -414,23 +410,12 @@ class _PingPongState extends State<PingPong> {
   }
 
   void _wrapThisUp() async {
-    if (await _letsProceed(
-            'Are you ready to finish shmoozing with ${widget.displayName.split(' ')[0]}?',
-            ['No', 'Yes']) ??
-        false) {
-      if (_canGoThroughCheckpoint()) {
-        _finishShmooze();
-        _destroyEngineAndStream();
-        _navigateToCaptioner();
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (!_showThatWeAreFinished) {
-            _showThatWeAreFinished = true;
-            if (mounted) {
-              setState(() {});
-            }
-          }
-        });
-      }
+    if (((await _areYouSure('Are you sure you want to stop the flow?')) ??
+            false) &&
+        _canGoThroughCheckpoint()) {
+      _finishShmooze();
+      _destroyEngineAndStream();
+      _navigateToCaptioner();
     }
   }
 
@@ -451,8 +436,10 @@ class _PingPongState extends State<PingPong> {
 
   void _navigateToCaptioner() {
     Navigator.of(context)
-        .push(CupertinoPageRoute(builder: (BuildContext context) {
+        .pushReplacement(CupertinoPageRoute(builder: (BuildContext context) {
       return ShmoozeNamer(
+        audioPlayer: AudioPlayer(playerId: _shmoozeId)
+          ..setReleaseMode(ReleaseMode.LOOP),
         updateVariables: _updateVariables,
         startedRecording: _startedRecording,
         shmoozeSnapshot: _shmoozeSnapshot,
@@ -461,10 +448,7 @@ class _PingPongState extends State<PingPong> {
         name: _name,
         readyForDispatch: _readyForDispatch,
         verses: _verses,
-        audioPlayer: _audioPlayer,
         audioRecordingUrl: _audioRecordingUrl,
-        // senderUid: widget.senderUid,
-        // inviteId: _inviteId,
       );
     }));
   }
@@ -514,29 +498,16 @@ class _PingPongState extends State<PingPong> {
     if (_shouldUpdateStatus()) {
       _updateInviteStatus(Status.finished.index);
     }
-    if (!_pauseScreen) {
-      _pauseScreen = true;
-      setState(() {});
-    }
   }
 
   void _endShmoozeEarly() {
     _finishShmooze();
     _destroyEngineAndStream();
-    _letsProceed('${widget.displayName} has left the shmooze.',
-        ['End shmooze early']).then((_) {
+    _letsProceed('${widget.displayName} has left the flow.', 'Okay').then((_) {
       if (!mounted) {
         return;
       }
       _navigateToCaptioner();
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (!_showThatWeAreFinished) {
-          _showThatWeAreFinished = true;
-          if (mounted) {
-            setState(() {});
-          }
-        }
-      });
     }).catchError((error) {
       print(error);
     });
@@ -559,13 +530,13 @@ class _PingPongState extends State<PingPong> {
             if (_isSender) {
               _endShmoozeEarly();
             } else {
-              _retreat('Shmooze has finished.');
+              _retreat('The flow is over.');
             }
           } else {
             if (_isSender) {
               _retreat('${widget.displayName} is currently unavailable.');
             } else {
-              _retreat('${widget.displayName} has cancelled the shmooze.');
+              _retreat('${widget.displayName} has left the flow.');
             }
           }
         }
@@ -629,31 +600,6 @@ class _PingPongState extends State<PingPong> {
     });
     _timer?.cancel();
     _destroyEngineAndStream();
-    _audioPlayer.dispose().catchError((error) {
-      print(error);
-    }).catchError((error) {
-      print(error);
-    });
-  }
-
-  void _onBack() async {
-    if (_isConnected) {
-      if (await _userWantsToLeave() == false) {
-        return;
-      }
-      _finishShmooze();
-    }
-    if (!mounted) {
-      return;
-    }
-    Navigator.of(context).pop();
-  }
-
-  Future<bool> _userWantsToLeave() async {
-    return await _areYouSure().catchError((error) {
-          print(error);
-        }) ??
-        false;
   }
 
   bool _canConnect(int letsConnectIn) {
@@ -745,13 +691,7 @@ class _PingPongState extends State<PingPong> {
     Wakelock.enable().catchError((error) {
       print(error);
     });
-
     _shmoozeSnapshot = {
-      'sender': {
-        'uid': Human.uid,
-        'photoUrl': Human.photoUrl,
-        'displayName': Human.displayName,
-      },
       'receiver': {
         'uid': widget.receiverUid,
         'photoUrl': widget.photoUrl,
@@ -762,12 +702,10 @@ class _PingPongState extends State<PingPong> {
     _shmoozeId = widget.shmoozeId;
     _inviteId = widget.inviteId;
     _hasInitializedEngine = false;
-    _showThatWeAreFinished = false;
     _hasBeenDestroyed = false;
     _name = _caption = '';
     _readyForDispatch = false;
     _hasFinished = false;
-    _pauseScreen = false;
     _isSender = widget.senderUid == Human.uid;
     _isReceiver = !_isSender;
     _isConnected = false;
@@ -781,91 +719,135 @@ class _PingPongState extends State<PingPong> {
     }
   }
 
+  Future<bool> _onBack() async {
+    if (_hasFinished) {
+      return false;
+    }
+    bool shouldPop = true;
+    if (!_isConnected) {
+      if (_isSender) {
+        if (!_senderHasAbandonedTheShmooze) {
+          _senderHasAbandonedTheShmooze = true;
+          _finishShmooze();
+        }
+      } else {
+        _finishShmooze();
+      }
+    } else {
+      if (await _areYouSure('Are you sure you want to leave the flow?') ??
+          false) {
+        _finishShmooze();
+      } else {
+        shouldPop = false;
+      }
+    }
+    return shouldPop;
+  }
+
+  final List<ValueKey<String>> _keys = [
+    ValueKey('sender'),
+    ValueKey('receiver')
+  ];
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async {
-        if (!_isConnected) {
-          if (_isSender) {
-            if (!_senderHasAbandonedTheShmooze) {
-              _senderHasAbandonedTheShmooze = true;
-              _finishShmooze();
-              _onBack();
-            }
-          } else {
-            _finishShmooze();
-            _onBack();
-          }
-        }
-        return false;
-      },
+      onWillPop: _onBack,
       child: Material(
         color: Colors.white,
         child: Scaffold(
-          resizeToAvoidBottomInset: false,
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              automaticallyImplyLeading: false,
-              elevation: 0.0,
-              title: AnimatedSwitcher(
+            resizeToAvoidBottomInset: false,
+            backgroundColor: Colors.transparent,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerFloat,
+            floatingActionButton: !_isConnected
+                ? null
+                : Padding(
+                    padding: EdgeInsets.only(
+                      bottom: 100 / 3 / 1.5 / 3,
+                    ),
+                    child: SizedBox(
+                      height: 40.0 + 10 / 3,
+                      child: !_isSender
+                          ? TextButton(
+                              key: _keys.first,
+                              style: TextButton.styleFrom(
+                                shape: StadiumBorder(),
+                                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                                backgroundColor: CupertinoColors.activeBlue,
+                              ),
+                              child: Icon(
+                                Icons.mic,
+                                size: 24.0,
+                                color: CupertinoColors.white,
+                              ),
+                              onPressed: null,
+                            )
+                          : TextButton(
+                              key: _keys.last,
+                              style: TextButton.styleFrom(
+                                shape: StadiumBorder(),
+                                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                                backgroundColor: CupertinoColors.destructiveRed,
+                              ),
+                              child: Icon(
+                                Icons.stop_rounded,
+                                size: 24.0,
+                                color: CupertinoColors.white,
+                              ),
+                              onPressed: _wrapThisUp,
+                              // label: Text(
+                              //   '',
+                              //   style: TextStyle(
+                              //     fontFamily: 'Roboto',
+                              //     fontSize: 15.0,
+                              //     fontWeight: FontWeight.w500,
+                              //     color: CupertinoColors.white,
+                              //   ),
+                              // )
+                            ),
+                    ),
+                  ),
+            appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                automaticallyImplyLeading: false,
+                elevation: 0.0,
+                title: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_rounded, size: 20.0),
+                      color: CupertinoColors.black,
+                      onPressed: () async {
+                        if ((await _onBack()) && mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                    ),
+                  ],
+                )),
+            body: Padding(
+              padding: EdgeInsets.only(
+                  bottom: kToolbarHeight,
+                  left: MediaQuery.of(context).size.width / 12.5 * (1 + 1 / 3),
+                  right:
+                      MediaQuery.of(context).size.width / 12.5 * (1 + 1 / 3)),
+              child: Center(
+                child: AnimatedSwitcher(
                   duration: Duration(milliseconds: 400),
                   child: !_isConnected
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.arrow_back_rounded,
-                                size: 20.0,
-                              ),
-                              color: CupertinoColors.black,
-                              onPressed: _onBack,
-                            ),
-                          ],
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              _pauseScreen
-                                  ? 'Shmooze has ended'
-                                  : 'Shmoozing...',
-                              style: GoogleFonts.roboto(
-                                fontSize: 10 + 10 / 3,
-                                fontWeight: FontWeight.w400,
-                                color: CupertinoColors.black,
-                              ),
-                            )
-                          ],
-                        ))),
-          body: Padding(
-            padding: EdgeInsets.only(
-                bottom: kToolbarHeight,
-                left: MediaQuery.of(context).size.width / 15,
-                right: MediaQuery.of(context).size.width / 15),
-            child: AnimatedSwitcher(
-                duration: Duration(milliseconds: 400),
-                child: !_isConnected
-                    ? WaitingPage(
-                        receiverDisplayName: widget.displayName,
-                        isSender: _isSender,
-                      )
-                    : Center(
-                        child: RecordingPage(
-                          pauseScreen: _pauseScreen,
-                          navigateToCaptioner: _navigateToCaptioner,
+                      ? WaitingPage(
+                          receiverDisplayName: widget.displayName,
                           isSender: _isSender,
-                          showThatWeAreFinished: _showThatWeAreFinished,
-                          onBack: _onBack,
-                          wrapThisUp: _wrapThisUp,
+                        )
+                      : RecordingPage(
+                          isSender: _isSender,
                           displayName: widget.displayName,
                           photoUrl: widget.photoUrl,
                         ),
-                      )),
-          ),
-        ),
+                ),
+              ),
+            )),
       ),
     );
   }

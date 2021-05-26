@@ -4,8 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:shmooze/human.dart';
 import 'package:shmooze/preview_page.dart';
+import 'constants.dart';
 
 class ShmoozeNamer extends StatefulWidget {
   final String name;
@@ -54,6 +55,9 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
   String _audioRecordingUrl;
   OverlayEntry _overlayEntry;
   Timer _processingTimer;
+  bool _isValid;
+  bool _hasLeftPage;
+  bool _hasTransferredUrl;
 
   void _navigateToPreviewPage() {
     dynamic playFrom =
@@ -66,15 +70,17 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         ((_verses[_verses.length - 1].get('mouth')['closes']).toInt() -
                 _startedRecording) +
             1000 ~/ 3;
+    final String audioRecordingUrl = _audioRecordingUrl;
+    _hasLeftPage = true;
     Navigator.of(context)
         .push(CupertinoPageRoute(builder: (BuildContext context) {
       return PreviewPage(
+        textScaleFactor: MediaQuery.of(context).textScaleFactor,
+        deviceWidth: MediaQuery.of(context).size.width,
         receiverUid: widget.shmoozeSnapshot['receiver']['uid'],
         receiverDisplayName: widget.shmoozeSnapshot['receiver']['displayName'],
         receiverPhotoUrl: widget.shmoozeSnapshot['receiver']['photoUrl'],
-        senderUid: widget.shmoozeSnapshot['sender']['uid'],
-        senderDisplayName: widget.shmoozeSnapshot['sender']['displayName'],
-        senderPhotoUrl: widget.shmoozeSnapshot['sender']['photoUrl'],
+        senderUid: Human.uid,
         playFrom: playFrom,
         playUntil: playUntil,
         startedRecording: _startedRecording,
@@ -83,9 +89,17 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         verses: _verses,
         caption: _name,
         shmoozeId: widget.shmoozeId,
-        audioRecordingUrl: _audioRecordingUrl,
+        audioRecordingUrl: audioRecordingUrl,
       );
-    }));
+    })).then((_) {
+      _hasLeftPage = false;
+      if (mounted) {
+        if (!_audioRecordingUrl.endsWith('.m3u8') && !_hasTransferredUrl) {
+          _hasTransferredUrl = true;
+          widget.audioPlayer.setUrl(_audioRecordingUrl);
+        }
+      }
+    });
   }
 
   void _onNext() {
@@ -139,20 +153,20 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         context: context,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
-            content: Text(
-              caption,
-              style: GoogleFonts.roboto(
-                fontSize: 15.0,
-                color: CupertinoColors.black,
-              ),
-            ),
+            content: Text(caption,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 15.0 + 1 / 3,
+                  color: CupertinoColors.black,
+                )),
             actions: [
               TextButton(
                 child: Text(
                   'Okay',
-                  style: GoogleFonts.roboto(
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
                     color: CupertinoColors.activeBlue,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onPressed: () {
@@ -170,9 +184,11 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
 
   void _initDispatch() {
     _readyForDispatch = true;
-    _inviteSubscription.cancel().catchError((error) {
-      print(error);
-    });
+    if (!_audioRecordingUrl.endsWith('.m3u8')) {
+      _inviteSubscription.cancel().catchError((error) {
+        print(error);
+      });
+    }
     widget.updateVariables(readyForDispatch: _readyForDispatch);
     if (_isTryingToLeavePage) {
       _isTryingToLeavePage = false;
@@ -195,21 +211,6 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
         if (snapshot == null || !snapshot.exists) {
           return;
         }
-        if (!_hasAudioRecording() &&
-            snapshot.get('audioRecordingUrl') != null &&
-            snapshot.get('startedRecording') != null) {
-          _audioRecordingUrl = snapshot.get('audioRecordingUrl');
-          _startedRecording = snapshot.get('startedRecording');
-          widget.audioPlayer.setUrl(_audioRecordingUrl).catchError((error) {
-            print(error);
-          });
-          widget.updateVariables(
-              audioRecordingUrl: _audioRecordingUrl,
-              startedRecording: _startedRecording);
-          if (_shouldGetReady()) {
-            _initDispatch();
-          }
-        }
         if (!_hasVerses() && snapshot.get('hasTranscript')) {
           final QuerySnapshot transcriptQuery = await FirebaseFirestore.instance
               .collection('shmoozes')
@@ -228,13 +229,51 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
             }
           }
         }
+        final bool hasAudioRecording = _hasAudioRecording();
+        if ((!hasAudioRecording || _audioRecordingUrl.endsWith('.m3u8')) &&
+            snapshot.get('audioRecordingUrl') != null &&
+            snapshot.get('startedRecording') != null) {
+          _audioRecordingUrl = snapshot.get('audioRecordingUrl');
+          _startedRecording = snapshot.get('startedRecording');
+          if (hasAudioRecording) {
+            if (_audioRecordingUrl.endsWith('.m3u8')) {
+              return;
+            }
+          }
+          if (!_hasLeftPage) {
+            if (!_audioRecordingUrl.endsWith('.m3u8')) {
+              _hasTransferredUrl = true;
+            }
+            widget.audioPlayer.setUrl(_audioRecordingUrl).catchError((error) {
+              print(error);
+            });
+          }
+          widget.updateVariables(
+              audioRecordingUrl: _audioRecordingUrl,
+              startedRecording: _startedRecording);
+          if (_shouldGetReady()) {
+            _initDispatch();
+          }
+        }
       },
     );
   }
 
-  void _textListener(String txt) {
-    _name = txt.trim();
-    widget.updateVariables(name: _name);
+  void _textListener() {
+    final String name = _textEditingController.text.trim();
+    widget.updateVariables(name: name);
+    if (name.isNotEmpty && !_isValid) {
+      _isValid = true;
+      if (mounted) {
+        setState(() {});
+      }
+    }
+    if (name.isEmpty && _isValid) {
+      _isValid = false;
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   bool _hasVerses() {
@@ -244,6 +283,9 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
   @override
   void initState() {
     super.initState();
+    _hasLeftPage = false;
+    _hasTransferredUrl = false;
+    _isValid = _textEditingController.text.isNotEmpty;
     _audioRecordingUrl = widget.audioRecordingUrl;
     _startedRecording = widget.startedRecording;
     _name = widget.name;
@@ -251,9 +293,10 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
     _verses = widget.verses;
     _isTryingToLeavePage = false;
     _readyForDispatch = widget.readyForDispatch;
-    if (!_readyForDispatch) {
+    if (!_readyForDispatch || _audioRecordingUrl.endsWith('.m3u8')) {
       _setupStream();
     }
+    _textEditingController.addListener(_textListener);
   }
 
   bool _hasAudioRecording() {
@@ -263,24 +306,73 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
   @override
   void dispose() {
     super.dispose();
-    if (!_readyForDispatch) {
+    if (!_readyForDispatch || _audioRecordingUrl.endsWith('.m3u8')) {
       _inviteSubscription.cancel().catchError((error) {
         print(error);
       });
     }
+    widget.audioPlayer.dispose().catchError((error) {
+      print(error);
+    });
     _textEditingController.dispose();
     _processingTimer?.cancel();
     _focusNode.dispose();
   }
 
+  Future<bool> _areYouSure() {
+    return showCupertinoDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return CupertinoAlertDialog(
+            content: Text('Are you sure you want to leave the flow?',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 15.0 + 1 / 3,
+                  color: CupertinoColors.black,
+                )),
+            actions: [
+              TextButton(
+                child: Text(
+                  'No',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: CupertinoColors.systemGrey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              TextButton(
+                child: Text(
+                  'Yes',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    color: CupertinoColors.activeBlue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        });
+  }
+
+  Future<bool> _onBack() async {
+    return !_isTryingToLeavePage && (await _areYouSure() ?? false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async => !_isTryingToLeavePage,
+      onWillPop: _onBack,
       child: GestureDetector(
-          onTap: () {
-            _focusNode.unfocus();
-          },
+          onTap: _focusNode.unfocus,
           child: Scaffold(
             backgroundColor: CupertinoColors.white,
             resizeToAvoidBottomInset: false,
@@ -293,9 +385,15 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
                 icon: Icon(
                   Icons.arrow_back_rounded,
                   color: CupertinoColors.black,
+                  size: 20.0,
                 ),
-                onPressed:
-                    _isTryingToLeavePage ? null : Navigator.of(context).pop,
+                onPressed: _isTryingToLeavePage
+                    ? null
+                    : () async {
+                        if (await _areYouSure() ?? false) {
+                          Navigator.of(context).pop();
+                        }
+                      },
               ),
             ),
             body: Padding(
@@ -311,19 +409,26 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
                     focusNode: _focusNode,
                     autofocus: true,
                     maxLines: null,
-                    onChanged: _textListener,
                     cursorColor: CupertinoColors.activeBlue,
                     textAlign: TextAlign.left,
-                    style: GoogleFonts.roboto(
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
                       color: CupertinoColors.black,
                       fontSize: 20.0,
                       fontWeight: FontWeight.w400,
                     ),
+                    buildCounter: (BuildContext context,
+                            {int currentLength,
+                            int maxLength,
+                            bool isFocused}) =>
+                        null,
+                    maxLength: kShmoozeNameMaxLength,
                     textCapitalization: TextCapitalization.sentences,
                     controller: _textEditingController,
                     decoration: InputDecoration.collapsed(
-                      hintText: 'Caption this shmooze...',
-                      hintStyle: GoogleFonts.roboto(
+                      hintText: 'Describe the flow...',
+                      hintStyle: TextStyle(
+                          fontFamily: 'Roboto',
                           color: CupertinoColors.systemGrey2,
                           fontWeight: FontWeight.w400,
                           fontSize: 20.0),
@@ -339,10 +444,10 @@ class _ShmoozeNamerState extends State<ShmoozeNamer> {
                         onPressed: _onNext,
                         child: Text(
                           'Preview',
-                          style: GoogleFonts.roboto(
+                          style: TextStyle(
                             color: CupertinoColors.activeBlue,
                             fontWeight: FontWeight.w500,
-                            fontSize: 14.0,
+                            fontSize: 15.0,
                           ),
                         ),
                       ))

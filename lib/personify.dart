@@ -5,16 +5,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shmooze/constants.dart';
 import 'package:shmooze/human.dart';
 import 'package:shmooze/shmoozers.dart';
 
 class Personify extends StatefulWidget {
-  final VoidCallback updateMainStage;
+  final VoidCallback refreshStageHeader;
 
-  Personify({@required this.updateMainStage});
+  const Personify({
+    @required this.refreshStageHeader,
+  });
 
   @override
   _PersonifyState createState() => _PersonifyState();
@@ -24,7 +25,7 @@ class _PersonifyState extends State<Personify> {
   final FocusNode _focusNode = FocusNode();
   final TextEditingController _textEditingController = TextEditingController();
   File _imageFile;
-  bool _isValid;
+  bool _usernameIsValid;
 
   void _showErrorMsg() {
     showCupertinoDialog(
@@ -32,21 +33,22 @@ class _PersonifyState extends State<Personify> {
         context: context,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
-            title: Text(
-              'Too short',
-              style: GoogleFonts.roboto(),
-            ),
             content: Text(
               'Name must have at least three characters.',
-              style: GoogleFonts.roboto(),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 15.0 + 1 / 3,
+                color: CupertinoColors.black,
+              ),
             ),
             actions: [
               TextButton(
                 child: Text(
                   'Okay',
-                  style: GoogleFonts.roboto(
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
                     color: CupertinoColors.activeBlue,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onPressed: () {
@@ -94,16 +96,23 @@ class _PersonifyState extends State<Personify> {
   }
 
   void _createProfile(String displayName) async {
+    Human.accountExists = true;
+    Human.displayName = displayName;
+    Human.currentUser
+        .updateProfile(displayName: displayName)
+        .then((_) => Human.currentUser.reload().catchError((error) {
+              print(error);
+            }))
+        .catchError((error) {
+      print(error);
+    });
     String photoUrl;
     if (_imageFile != null) {
       photoUrl = await _getPhotoUrl();
     }
-    Human.displayName = displayName;
     Human.photoUrl = photoUrl;
-    Human.accountExists = true;
-    widget.updateMainStage();
     Human.currentUser
-        .updateProfile(displayName: displayName, photoURL: photoUrl)
+        .updateProfile(photoURL: photoUrl)
         .then((_) => Human.currentUser.reload().catchError((error) {
               print(error);
             }))
@@ -120,6 +129,7 @@ class _PersonifyState extends State<Personify> {
   }
 
   void _onNext() {
+    widget.refreshStageHeader();
     _focusNode.unfocus();
     _createProfile(_textEditingController.text.trim());
     Navigator.of(context)
@@ -134,14 +144,14 @@ class _PersonifyState extends State<Personify> {
 
   void _onChangedText() {
     final String txt = _textEditingController.text.trim();
-    if (txt.length < 3 && _isValid) {
-      _isValid = false;
+    if (txt.length < 3 && _usernameIsValid) {
+      _usernameIsValid = false;
       if (mounted) {
         setState(() {});
       }
     }
-    if (txt.length >= 3 && !_isValid) {
-      _isValid = true;
+    if (txt.length >= 3 && !_usernameIsValid) {
+      _usernameIsValid = true;
       if (mounted) {
         setState(() {});
       }
@@ -162,7 +172,7 @@ class _PersonifyState extends State<Personify> {
   @override
   void initState() {
     super.initState();
-    _isValid = false;
+    _usernameIsValid = false;
     _textEditingController.addListener(_onChangedText);
   }
 
@@ -191,6 +201,7 @@ class _PersonifyState extends State<Personify> {
             icon: Icon(
               Icons.arrow_back_rounded,
               color: CupertinoColors.black,
+              size: 20.0,
             ),
             onPressed: Navigator.of(context).pop,
           ),
@@ -201,7 +212,8 @@ class _PersonifyState extends State<Personify> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: MediaQuery.of(context).size.height * 0.025),
+              SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.025 * 3 / 4),
               Align(
                   alignment: Alignment.center,
                   child: Stack(
@@ -264,34 +276,17 @@ class _PersonifyState extends State<Personify> {
                       )
                     ],
                   )),
-              SizedBox(height: MediaQuery.of(context).size.height * 0.015),
-              Align(
-                alignment: Alignment.center,
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    shape: StadiumBorder(),
-                    backgroundColor: Colors.transparent,
-                  ),
-                  onPressed: () => _deleteOrCapture(true),
-                  child: Text(
-                    !_hasImage()
-                        ? 'Upload profile photo'
-                        : 'Change profile photo',
-                    style: GoogleFonts.roboto(
-                      color: _hasImage()
-                          ? CupertinoColors.activeBlue
-                          : CupertinoColors.activeBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: MediaQuery.of(context).size.height * 0.015),
+              SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.025 * 0.875),
               TextField(
                 focusNode: _focusNode,
                 cursorColor: CupertinoColors.activeBlue,
                 textAlign: TextAlign.left,
-                style: GoogleFonts.roboto(
+                buildCounter: (BuildContext context,
+                        {int currentLength, int maxLength, bool isFocused}) =>
+                    null,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
                   color: CupertinoColors.black,
                   fontSize: 20.0,
                   fontWeight: FontWeight.w400,
@@ -301,8 +296,9 @@ class _PersonifyState extends State<Personify> {
                 controller: _textEditingController,
                 maxLength: kNameMaxLength,
                 decoration: InputDecoration(
-                  hintText: 'Enter name...',
-                  counterStyle: GoogleFonts.roboto(
+                  hintText: 'Enter your name here',
+                  counterStyle: TextStyle(
+                    fontFamily: 'Roboto',
                     color: CupertinoColors.systemGrey2,
                     fontWeight: FontWeight.w500,
                   ),
@@ -314,7 +310,8 @@ class _PersonifyState extends State<Personify> {
                       borderSide: BorderSide(
                     color: CupertinoColors.activeBlue,
                   )),
-                  hintStyle: GoogleFonts.roboto(
+                  hintStyle: TextStyle(
+                      fontFamily: 'Roboto',
                       color: CupertinoColors.systemGrey2,
                       fontWeight: FontWeight.w400,
                       fontSize: 20.0),
@@ -326,10 +323,11 @@ class _PersonifyState extends State<Personify> {
                   child: GestureDetector(
                     onTap: _showErrorMsg,
                     child: TextButton(
-                        onPressed: !_isValid ? null : _onNext,
+                        onPressed: !_usernameIsValid ? null : _onNext,
                         child: Text(
                           'Next',
-                          style: GoogleFonts.roboto(
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
                             color: CupertinoColors.activeBlue,
                             fontWeight: FontWeight.w500,
                           ),

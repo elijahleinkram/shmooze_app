@@ -8,10 +8,24 @@ class FakeScripture extends StatelessWidget {
       physics: ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         SliverList(
+          delegate: SliverChildListDelegate([
+            SizedBox(
+                height:
+                    MediaQuery.of(context).size.width / (12.5 * (3 + 1 / 3))),
+          ]),
+        ),
+        SliverList(
           delegate:
               SliverChildBuilderDelegate((BuildContext context, int index) {
-            return FakeVerse(index: index, length: 100);
+            return FakeVerse();
           }, childCount: 100),
+        ),
+        SliverList(
+          delegate: SliverChildListDelegate([
+            SizedBox(
+              height: MediaQuery.of(context).size.width / (12.5 * (3 + 1 / 3)),
+            )
+          ]),
         ),
       ],
     );

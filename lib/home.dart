@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'window.dart';
 import 'human.dart';
 import 'main_stage.dart';
 
@@ -49,10 +48,6 @@ class _HomeState extends State<Home> {
     });
   }
 
-  bool _hasSignedIn() {
-    return Human.uid != null;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -89,14 +84,8 @@ class _HomeState extends State<Home> {
       child: Material(
         color: Colors.white,
         child: SafeArea(
-          child: Column(
-            children: [
-              !_hasSignedIn() ? Container() : Window(),
-              Expanded(
-                  child: MainStage(
-                uploadShmooze: widget.uploadShmooze,
-              )),
-            ],
+          child: MainStage(
+            uploadShmooze: widget.uploadShmooze,
           ),
         ),
       ),

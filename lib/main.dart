@@ -4,18 +4,29 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'home.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 FirebaseAnalytics analytics = FirebaseAnalytics();
 
 void main() {
+  LicenseRegistry.addLicense(() async* {
+    final license =
+        await rootBundle.loadString('google_fonts/OFL.txt').catchError((error) {
+      print(error);
+    });
+    if (license != null) {
+      yield LicenseEntryWithLineBreaks(['google_fonts'], license);
+    }
+  });
   WidgetsFlutterBinding.ensureInitialized();
   Firebase.initializeApp().then((value) => runApp(MaterialApp(
         navigatorObservers: [
           routeObserver,
           FirebaseAnalyticsObserver(analytics: analytics),
         ],
-        title: 'Shmooze',
+        title: 'The Flow',
         home: NotificationListener(
           onNotification: (OverscrollIndicatorNotification overScroll) {
             overScroll.disallowGlow();

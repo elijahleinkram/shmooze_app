@@ -1,31 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
-class FakeVerse extends StatefulWidget {
-  final int index;
-  final int length;
-
-  FakeVerse({@required this.index, @required this.length});
-
-  @override
-  _FakeVerseState createState() => _FakeVerseState();
-}
-
-class _FakeVerseState extends State<FakeVerse> {
-  Widget _bottomWidget;
-
-  @override
-  void initState() {
-    super.initState();
-    final bool isAtTheEnd = widget.index == widget.length - 1;
-    _bottomWidget = isAtTheEnd
-        ? SizedBox(
-            height: 100 / 3,
-          )
-        : Container();
-  }
+class FakeVerse extends StatelessWidget {
+  const FakeVerse();
 
   @override
   Widget build(BuildContext context) {
@@ -35,90 +13,87 @@ class _FakeVerseState extends State<FakeVerse> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 100 / 3),
+          SizedBox(
+            height: MediaQuery.of(context).size.width / (12.5 * (3 + 1 / 3)),
+          ),
           Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.of(context).size.width / 15),
+                horizontal: MediaQuery.of(context).size.width / 12.5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                SizedBox(height: 10 * 2 / 3),
+                Stack(
                   children: [
-                    ClipRect(
-                      child: Align(
-                        heightFactor: 0.5,
-                        child: Stack(
-                          children: [
-                            Text(
-                              '770 Eastern Parkway',
-                              style: GoogleFonts.newsCycle(
-                                color: CupertinoColors.black,
-                                fontSize: 17.5,
-                                fontWeight: FontWeight.w300,
-                              ),
-                            ),
-                            Positioned.fill(
-                                child: Material(color: Colors.white))
+                    SizedBox(
+                      width: double.infinity,
+                      child: RichText(
+                        textScaleFactor: MediaQuery.of(context).textScaleFactor,
+                        textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.start,
+                        maxLines: 1,
+                        text: TextSpan(
+                          children: <TextSpan>[
+                            TextSpan(
+                                text: 'a',
+                                style: TextStyle(
+                                    fontFamily: 'NewsCycle',
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 16.5 *
+                                        (1 + 1 / 7.5) *
+                                        (1 + 1 / 3) *
+                                        0.5,
+                                    color: Colors.transparent)),
                           ],
                         ),
                       ),
+                    ),
+                    Positioned.fill(
+                      child: Material(color: Colors.white),
                     )
                   ],
                 ),
-                SizedBox(height: 17.5 * 0.5),
-                ClipRect(
-                  child: Align(
-                    heightFactor: 0.5,
-                    child: Stack(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: Text(
-                            'There once was a man named michael finnegan',
-                            textAlign: TextAlign.left,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: GoogleFonts.newsCycle(
-                              color: CupertinoColors.black,
-                              fontSize: 20.0,
-                              fontWeight: FontWeight.w300,
-                            ),
-                          ),
-                        ),
-                        Positioned.fill(child: Material(color: Colors.white))
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 17.5 * 0.5),
-                ClipRect(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    heightFactor: 0.5,
-                    child: Stack(
-                      children: [
-                        Text(
-                          'Who had some...',
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
+                SizedBox(height: 10 * 2 / 3),
+                Stack(
+                  children: [
+                    Align(
+                      widthFactor: ((2 / 3) + (1 / 2)) / 2,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: RichText(
+                          textScaleFactor:
+                              MediaQuery.of(context).textScaleFactor,
+                          textDirection: TextDirection.ltr,
+                          textAlign: TextAlign.start,
                           maxLines: 1,
-                          style: GoogleFonts.newsCycle(
-                            color: CupertinoColors.black,
-                            fontSize: 20.0,
-                            fontWeight: FontWeight.w300,
+                          text: TextSpan(
+                            children: <TextSpan>[
+                              TextSpan(
+                                  text: 'a',
+                                  style: TextStyle(
+                                      fontFamily: 'NewsCycle',
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 16.5 *
+                                          (1 + 1 / 7.5) *
+                                          (1 + 1 / 3) *
+                                          0.5,
+                                      color: Colors.transparent)),
+                            ],
                           ),
                         ),
-                        Positioned.fill(child: Material(color: Colors.white))
-                      ],
+                      ),
                     ),
-                  ),
+                    Positioned.fill(
+                      child: Material(color: Colors.white),
+                    )
+                  ],
                 ),
               ],
             ),
           ),
-          _bottomWidget,
+          SizedBox(
+            height: MediaQuery.of(context).size.width / (12.5 * (3 + 1 / 3)),
+          ),
         ],
       ),
     );
